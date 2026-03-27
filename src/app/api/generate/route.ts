@@ -7,9 +7,7 @@ import { validatePost } from "@/lib/validator";
 function isAuthorized(req: NextRequest): boolean {
   if (process.env.NODE_ENV === "development") return true;
   const authHeader = req.headers.get("authorization")?.trim();
-  const querySecret = req.nextUrl.searchParams.get("secret")?.trim();
-  const secret = process.env.CRON_SECRET?.trim();
-  return authHeader === `Bearer ${secret}` || querySecret === secret;
+  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
 }
 
 /**
