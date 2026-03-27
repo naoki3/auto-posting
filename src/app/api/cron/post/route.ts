@@ -7,6 +7,7 @@ import { validatePost } from "@/lib/validator";
 
 // Vercel Cron は Authorization ヘッダーで保護する
 function isAuthorized(req: NextRequest): boolean {
+  if (process.env.NODE_ENV === "development") return true;
   const authHeader = req.headers.get("authorization");
   return authHeader === `Bearer ${process.env.CRON_SECRET}`;
 }
