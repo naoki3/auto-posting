@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { TopPost } from "@/lib/analytics";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -7,55 +8,25 @@ const client = new Anthropic({
 export interface GeneratedPost {
   content: string;
   prompt: string;
-}
-
-// 投稿テーマのリスト（毎日ローテーション）
-const THEMES = [
-  "生産性向上のコツ",
-  "AIを使った仕事術",
-  "朝のルーティンで変わる1日",
-  "副業・フリーランスの現実",
-  "読書から学んだこと",
-  "マインドセットの重要性",
-  "時間管理の本質",
-  "人間関係を楽にするコツ",
-  "お金の考え方を変える",
-  "継続できる習慣の作り方",
-  "集中力を高める環境づくり",
-  "失敗から立ち直る力",
-  "目標設定の落とし穴",
-  "SNSとの正しい付き合い方",
-];
-
-/**
- * 今日のテーマを日付から決定する
- */
-export function getTodayTheme(): string {
-  const today = new Date();
-  const dayOfYear =
-    Math.floor(
-      (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) /
-        86400000
-    ) - 1;
-  return THEMES[dayOfYear % THEMES.length];
+  strategy: "inspired_by_top" | "fallback";
 }
 
 /**
  * AIで投稿文を生成する
- * 構成: フック（共感）→ 価値（本文）→ CTA（行動）
+ * topPost がある場合: 前日バズ投稿を分析して同じ「なぜ刺さったか」を活かす
+ * topPost がない場合: フォールバックとして汎用プロンプトで生成
  */
-export async function generatePost(theme: string): Promise<GeneratedPost> {
-  const prompt = buildPrompt(theme);
+export async function generatePost(
+  topPost: TopPost | null
+): Promise<GeneratedPost> {
+  const { prompt, strategy } = topPost
+    ? buildInspiredPrompt(topPost)
+    : buildFallbackPrompt();
 
   const message = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 512,
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
+    messages: [{ role: "user", content: prompt }],
   });
 
   const rawContent = message.content[0];
@@ -63,16 +34,54 @@ export async function generatePost(theme: string): Promise<GeneratedPost> {
     throw new Error("Unexpected response type from AI");
   }
 
-  const content = rawContent.text.trim();
-  return { content, prompt };
+  return { content: rawContent.text.trim(), prompt, strategy };
 }
 
-function buildPrompt(theme: string): string {
-  return `あなたはX（旧Twitter）のバズる投稿を作る専門家です。
+/**
+ * 前日バズ投稿を分析して、その「勝ちパターン」を再現するプロンプト
+ */
+function buildInspiredPrompt(topPost: TopPost): {
+  prompt: string;
+  strategy: "inspired_by_top";
+} {
+  const prompt = `あなたはX（旧Twitter）のバズる投稿を作る専門家です。
 
-以下のテーマで、X投稿文を1つ作成してください。
+【前日にバズった投稿】
+---
+${topPost.content}
+---
+パフォーマンス: いいね ${topPost.likes} / リポスト ${topPost.reposts} / インプレッション ${topPost.impressions}
 
-テーマ: ${theme}
+この投稿がバズった理由を以下の観点で分析してください:
+- どんな感情（共感・驚き・学び・笑い）を引き起こしているか
+- フックの構造（問いかけ・数字・逆説・体験談など）
+- どんな読者層に刺さったか
+
+その分析をもとに、**同じ「なぜ刺さるか」の本質を維持しつつ**、内容は全く別のテーマで新しい投稿を1つ作成してください。
+
+【制約】
+- 全体で140文字以内
+- 構成: フック（共感・驚き）→ 価値（具体的情報）→ CTA（行動喚起）
+- AIっぽい硬い表現を避け、人間らしい口語体
+- ハッシュタグは使わない
+- 絵文字は2〜3個まで
+- 前日の投稿をそのままコピーしない（テーマを変えること）
+
+投稿文のみを出力してください。分析や前置きは不要です。`;
+
+  return { prompt, strategy: "inspired_by_top" };
+}
+
+/**
+ * フォールバック: 前日データがない場合の汎用プロンプト
+ */
+function buildFallbackPrompt(): {
+  prompt: string;
+  strategy: "fallback";
+} {
+  const prompt = `あなたはX（旧Twitter）のバズる投稿を作る専門家です。
+
+今日のX投稿文を1つ作成してください。
 
 【構成ルール（必ず守ること）】
 1. フック（1〜2行）: 読者が「わかる」「これ自分のことだ」と共感する問いかけや事実
@@ -80,11 +89,13 @@ function buildPrompt(theme: string): string {
 3. CTA（1行）: 「いいね」「保存」「フォロー」など自然な行動喚起
 
 【制約】
-- 全体で140文字以内に収めること
+- 全体で140文字以内
 - 改行を適切に使うこと
-- AIっぽい硬い表現を避け、人間らしい口語体で書くこと
+- AIっぽい硬い表現を避け、人間らしい口語体
 - ハッシュタグは使わない
 - 絵文字は2〜3個まで
 
 投稿文のみを出力してください。前置きや説明は不要です。`;
+
+  return { prompt, strategy: "fallback" };
 }

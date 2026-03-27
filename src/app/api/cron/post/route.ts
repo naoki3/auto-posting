@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { db, accounts, posts, prompts } from "@/lib/db";
-import { generatePost, getTodayTheme } from "@/lib/ai";
+import { generatePost } from "@/lib/ai";
+import { fetchAndSaveMetrics, getTopPostYesterday } from "@/lib/analytics";
 import { postTweet } from "@/lib/twitter";
 import { validatePost } from "@/lib/validator";
 
@@ -12,7 +12,6 @@ function isAuthorized(req: NextRequest): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  // 認証チェック
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -20,36 +19,53 @@ export async function GET(req: NextRequest) {
   const results: Array<{
     accountId: string;
     status: "posted" | "failed" | "skipped";
+    strategy?: string;
     error?: string;
     tweetId?: string;
     content?: string;
+    topPost?: { likes: number; impressions: number; reposts: number };
   }> = [];
 
   try {
-    // 1. 今日のテーマを決定
-    const theme = getTodayTheme();
-    console.log(`[cron] Today's theme: ${theme}`);
-
-    // 2. アクティブなアカウントを全件取得
+    // アクティブなアカウントを全件取得
     const allAccounts = await db.select().from(accounts);
 
     if (allAccounts.length === 0) {
-      return NextResponse.json(
-        { message: "No accounts found", theme },
-        { status: 200 }
-      );
+      return NextResponse.json({ message: "No accounts found" }, { status: 200 });
     }
 
-    // 3. アカウントごとに投稿処理
     for (const account of allAccounts) {
       try {
-        // 3-1. AIで投稿文を生成
-        const { content, prompt } = await generatePost(theme);
+        // 1. 前日の投稿メトリクスをX APIから取得してDBに保存
+        try {
+          await fetchAndSaveMetrics(
+            account.accessToken,
+            account.accessSecret,
+            account.accountId
+          );
+          console.log(`[cron] Metrics saved for ${account.accountId}`);
+        } catch (err) {
+          // メトリクス取得失敗はフォールバックで続行（投稿自体は止めない）
+          console.warn(`[cron] Failed to fetch metrics for ${account.accountId}:`, err);
+        }
+
+        // 2. 前日のトップ投稿を取得
+        const topPost = await getTopPostYesterday(account.accountId);
+        if (topPost) {
+          console.log(
+            `[cron] Top post for ${account.accountId}: score=${topPost.score} likes=${topPost.likes}`
+          );
+        } else {
+          console.log(`[cron] No top post found for ${account.accountId}, using fallback`);
+        }
+
+        // 3. AIで今日の投稿を生成（バズ投稿を参考に or フォールバック）
+        const { content, prompt, strategy } = await generatePost(topPost);
         console.log(
-          `[cron] Generated post for ${account.accountId}: ${content.slice(0, 50)}...`
+          `[cron] Generated (${strategy}) for ${account.accountId}: ${content.slice(0, 50)}...`
         );
 
-        // 3-2. バリデーション
+        // 4. バリデーション
         const validation = validatePost(content);
         if (!validation.valid) {
           console.warn(
@@ -57,43 +73,41 @@ export async function GET(req: NextRequest) {
             validation.errors
           );
 
-          // DBにfailレコードを保存
           const [savedPost] = await db
             .insert(posts)
             .values({
               content,
               accountId: account.accountId,
               status: "failed",
-              theme,
+              theme: strategy,
             })
             .returning();
 
           await db.insert(prompts).values({
             prompt,
             output: content,
-            theme,
+            theme: strategy,
             postId: savedPost.id,
           });
 
           results.push({
             accountId: account.accountId,
             status: "failed",
+            strategy,
             error: validation.errors.join(", "),
           });
           continue;
         }
 
-        // 3-3. Xに投稿
+        // 5. Xに投稿
         const tweet = await postTweet(
           account.accessToken,
           account.accessSecret,
           content
         );
-        console.log(
-          `[cron] Posted tweet for ${account.accountId}: ${tweet.tweetId}`
-        );
+        console.log(`[cron] Posted tweet for ${account.accountId}: ${tweet.tweetId}`);
 
-        // 3-4. DBに保存（posts）
+        // 6. DBに保存
         const [savedPost] = await db
           .insert(posts)
           .values({
@@ -102,39 +116,40 @@ export async function GET(req: NextRequest) {
             tweetId: tweet.tweetId,
             postedAt: new Date(),
             status: "posted",
-            theme,
+            theme: strategy,
           })
           .returning();
 
-        // 3-5. プロンプト履歴保存
         await db.insert(prompts).values({
           prompt,
           output: content,
-          theme,
+          theme: strategy,
           postId: savedPost.id,
         });
 
         results.push({
           accountId: account.accountId,
           status: "posted",
+          strategy,
           tweetId: tweet.tweetId,
           content,
+          ...(topPost && {
+            topPost: {
+              likes: topPost.likes,
+              impressions: topPost.impressions,
+              reposts: topPost.reposts,
+            },
+          }),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[cron] Error for account ${account.accountId}:`, err);
-
-        results.push({
-          accountId: account.accountId,
-          status: "failed",
-          error: message,
-        });
+        results.push({ accountId: account.accountId, status: "failed", error: message });
       }
     }
 
     return NextResponse.json({
       success: true,
-      theme,
       results,
       postedCount: results.filter((r) => r.status === "posted").length,
       failedCount: results.filter((r) => r.status === "failed").length,
@@ -142,9 +157,6 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cron] Fatal error:", err);
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
