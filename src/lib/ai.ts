@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { TopPost } from "@/lib/analytics";
+import { countTweetLength } from "@/lib/validator";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -12,9 +13,7 @@ export interface GeneratedPost {
 }
 
 /**
- * AIで投稿文を生成する
- * topPost がある場合: 前日バズ投稿を分析して同じ「なぜ刺さったか」を活かす
- * topPost がない場合: フォールバックとして汎用プロンプトで生成
+ * AIで投稿文を生成する（140文字以内になるまで最大3回リトライ）
  */
 export async function generatePost(
   topPost: TopPost | null
@@ -23,18 +22,32 @@ export async function generatePost(
     ? buildInspiredPrompt(topPost)
     : buildFallbackPrompt();
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-  });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const retryNote =
+      attempt > 1
+        ? `\n\n※前回の出力が140文字を超えました。必ず140文字以内に収めてください。`
+        : "";
 
-  const rawContent = message.content[0];
-  if (rawContent.type !== "text") {
-    throw new Error("Unexpected response type from AI");
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt + retryNote }],
+    });
+
+    const rawContent = message.content[0];
+    if (rawContent.type !== "text") {
+      throw new Error("Unexpected response type from AI");
+    }
+
+    const content = rawContent.text.trim();
+    if (countTweetLength(content) <= 140) {
+      return { content, prompt, strategy };
+    }
+
+    console.warn(`[ai] Attempt ${attempt}: ${countTweetLength(content)} chars, retrying...`);
   }
 
-  return { content: rawContent.text.trim(), prompt, strategy };
+  throw new Error("Failed to generate a post within 140 characters after 3 attempts");
 }
 
 /**
