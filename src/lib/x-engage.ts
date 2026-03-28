@@ -40,7 +40,7 @@ export async function searchPopularTweets(
 
   const result = await client.v2.search(`${keyword} lang:ja`, {
     sort_order: "relevancy",
-    max_results: 10,
+    max_results: 100,
     "tweet.fields": ["public_metrics", "author_id", "reply_settings"],
     expansions: ["author_id"],
   });
