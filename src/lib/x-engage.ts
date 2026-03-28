@@ -50,8 +50,12 @@ export async function searchPopularTweets(
   tweets.forEach((t) => console.log(`  - ${t.id}: likes=${t.public_metrics?.like_count} text="${t.text.slice(0, 40)}"`));
 
   return tweets
-    .filter((t) => t.public_metrics && t.public_metrics.reply_count > 0 && t.reply_settings === "everyone")
-    .sort((a, b) => (b.public_metrics?.reply_count ?? 0) - (a.public_metrics?.reply_count ?? 0))
+    .filter((t) => t.public_metrics && t.reply_settings === "everyone")
+    .sort((a, b) => {
+      const scoreA = (a.public_metrics?.like_count ?? 0) + (a.public_metrics?.reply_count ?? 0);
+      const scoreB = (b.public_metrics?.like_count ?? 0) + (b.public_metrics?.reply_count ?? 0);
+      return scoreB - scoreA;
+    })
     .slice(0, limit)
     .map((t) => ({
       tweetId: t.id,
