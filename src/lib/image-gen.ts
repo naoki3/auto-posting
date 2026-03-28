@@ -32,7 +32,8 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 
 1. 画像生成用のシーン説明（英語・1文）
    - 日本人女性・マスク着用・その日に合った服装と背景
-   - 例: "A young Japanese woman wearing a mask and yukata at a summer festival with lanterns"
+   - 全身が映るシーン・肌が自然に見える服装（浴衣・ワンピース・ショートパンツなど季節に合わせて）
+   - 例: "A young Japanese woman wearing a mask and summer dress, full body shot, standing at a beach at sunset"
 
 2. Xに投稿するツイート文（日本語・100文字以内）
    - 女性らしい自然な口語体
@@ -69,7 +70,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Photorealistic style, same character as the reference image: same face, same dark hair, same mask. High quality portrait.`;
+  const prompt = `${scene}. Ultra-photorealistic, cinematic lighting, full body shot, same character as the reference image: same face, same dark hair, same mask. Natural skin visible on arms and legs. High resolution, professional photography style.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-1",
