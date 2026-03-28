@@ -36,6 +36,7 @@ export const posts = pgTable("posts", {
   postedAt: timestamp("posted_at"),
   status: postStatusEnum("status").default("pending").notNull(),
   theme: text("theme"),
+  sourceUrl: text("source_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
