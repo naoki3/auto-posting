@@ -108,6 +108,13 @@ export async function replyToTweet(
 ): Promise<string> {
   console.log(`[engage] Replying to ${tweetId} with: "${comment}" (${comment.length}chars)`);
   const client = getClient(accessToken, accessSecret);
-  const tweet = await client.v2.reply(comment, tweetId);
-  return tweet.data.id;
+  try {
+    const tweet = await client.v2.reply(comment, tweetId);
+    return tweet.data.id;
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "data" in err) {
+      console.error(`[engage] Reply error data:`, JSON.stringify((err as { data: unknown }).data));
+    }
+    throw err;
+  }
 }
