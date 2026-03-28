@@ -96,24 +96,3 @@ export async function repostTweet(
   await client.v2.retweet(me.data.id, tweetId);
 }
 
-/**
- * ツイートにリプライする
- */
-export async function replyToTweet(
-  accessToken: string,
-  accessSecret: string,
-  tweetId: string,
-  comment: string
-): Promise<string> {
-  console.log(`[engage] Replying to ${tweetId} with: "${comment}" (${comment.length}chars)`);
-  const client = getClient(accessToken, accessSecret);
-  try {
-    const tweet = await client.v2.reply(comment, tweetId);
-    return tweet.data.id;
-  } catch (err: unknown) {
-    if (err && typeof err === "object" && "data" in err) {
-      console.error(`[engage] Reply error data:`, JSON.stringify((err as { data: unknown }).data));
-    }
-    throw err;
-  }
-}
