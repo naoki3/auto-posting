@@ -41,7 +41,7 @@ export async function searchPopularTweets(
   const result = await client.v2.search(`${keyword} lang:ja`, {
     sort_order: "relevancy",
     max_results: 100,
-    "tweet.fields": ["public_metrics", "author_id", "reply_settings"],
+    "tweet.fields": ["public_metrics", "author_id", "reply_settings", "conversation_id"],
     expansions: ["author_id"],
   });
 
@@ -50,7 +50,11 @@ export async function searchPopularTweets(
   tweets.forEach((t) => console.log(`  - ${t.id}: likes=${t.public_metrics?.like_count} text="${t.text.slice(0, 40)}"`));
 
   return tweets
-    .filter((t) => t.public_metrics && t.reply_settings === "everyone")
+    .filter((t) =>
+      t.public_metrics &&
+      t.reply_settings === "everyone" &&
+      t.conversation_id === t.id  // 元ツイートのみ（スレッド途中は除外）
+    )
     .sort((a, b) => {
       const scoreA = (a.public_metrics?.like_count ?? 0) + (a.public_metrics?.reply_count ?? 0);
       const scoreB = (b.public_metrics?.like_count ?? 0) + (b.public_metrics?.reply_count ?? 0);
