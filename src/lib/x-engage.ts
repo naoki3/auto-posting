@@ -94,8 +94,6 @@ export async function replyToTweet(
   comment: string
 ): Promise<string> {
   const client = getClient(accessToken, accessSecret);
-  const tweet = await client.v2.tweet(comment, {
-    reply: { in_reply_to_tweet_id: tweetId },
-  });
+  const tweet = await client.v2.reply(comment, tweetId);
   return tweet.data.id;
 }
