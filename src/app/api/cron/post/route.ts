@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { desc, eq, isNotNull } from "drizzle-orm";
 import { db, accounts, posts, prompts } from "@/lib/db";
-import { generatePost } from "@/lib/ai";
-import { fetchAndSaveMetrics, getTopPostYesterday } from "@/lib/analytics";
+import { generateNewsPost } from "@/lib/ai";
+import { fetchTopNews } from "@/lib/news";
 import { postTweet } from "@/lib/twitter";
-import { validatePost } from "@/lib/validator";
 
-// Vercel Cron は Authorization ヘッダーで保護する
 function isAuthorized(req: NextRequest): boolean {
   if (process.env.NODE_ENV === "development") return true;
-  const authHeader = req.headers.get("authorization");
-  return authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  const authHeader = req.headers.get("authorization")?.trim();
+  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -17,98 +16,46 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const results: Array<{
-    accountId: string;
-    status: "posted" | "failed" | "skipped";
-    strategy?: string;
-    error?: string;
-    tweetId?: string;
-    content?: string;
-    topPost?: { likes: number; impressions: number; reposts: number };
-  }> = [];
-
   try {
-    // アクティブなアカウントを全件取得
+    // アカウントを取得
     const allAccounts = await db.select().from(accounts);
-
     if (allAccounts.length === 0) {
       return NextResponse.json({ message: "No accounts found" }, { status: 200 });
     }
+    const account = allAccounts[0];
 
-    for (const account of allAccounts) {
+    // 過去に投稿済みのURLを取得
+    const postedRows = await db
+      .select({ sourceUrl: posts.sourceUrl })
+      .from(posts)
+      .where(isNotNull(posts.sourceUrl))
+      .orderBy(desc(posts.createdAt))
+      .limit(200);
+
+    const postedUrls = new Set(postedRows.map((r) => r.sourceUrl!));
+
+    // NewsAPI から未投稿のニュースを3件取得
+    const articles = await fetchTopNews(postedUrls, 3);
+
+    if (articles.length === 0) {
+      return NextResponse.json({ message: "No new articles found" }, { status: 200 });
+    }
+
+    const results = [];
+
+    for (const article of articles) {
       try {
-        // 1. 前日の投稿メトリクスをX APIから取得してDBに保存
-        try {
-          await fetchAndSaveMetrics(
-            account.accessToken,
-            account.accessSecret,
-            account.accountId
-          );
-          console.log(`[cron] Metrics saved for ${account.accountId}`);
-        } catch (err) {
-          // メトリクス取得失敗はフォールバックで続行（投稿自体は止めない）
-          console.warn(`[cron] Failed to fetch metrics for ${account.accountId}:`, err);
-        }
+        // AI で要約＋コメント生成
+        const content = await generateNewsPost(article);
 
-        // 2. 前日のトップ投稿を取得
-        const topPost = await getTopPostYesterday(account.accountId);
-        if (topPost) {
-          console.log(
-            `[cron] Top post for ${account.accountId}: score=${topPost.score} likes=${topPost.likes}`
-          );
-        } else {
-          console.log(`[cron] No top post found for ${account.accountId}, using fallback`);
-        }
-
-        // 3. AIで今日の投稿を生成（バズ投稿を参考に or フォールバック）
-        const { content, prompt, strategy } = await generatePost(topPost);
-        console.log(
-          `[cron] Generated (${strategy}) for ${account.accountId}: ${content.slice(0, 50)}...`
-        );
-
-        // 4. バリデーション
-        const validation = validatePost(content);
-        if (!validation.valid) {
-          console.warn(
-            `[cron] Validation failed for ${account.accountId}:`,
-            validation.errors
-          );
-
-          const [savedPost] = await db
-            .insert(posts)
-            .values({
-              content,
-              accountId: account.accountId,
-              status: "failed",
-              theme: strategy,
-            })
-            .returning();
-
-          await db.insert(prompts).values({
-            prompt,
-            output: content,
-            theme: strategy,
-            postId: savedPost.id,
-          });
-
-          results.push({
-            accountId: account.accountId,
-            status: "failed",
-            strategy,
-            error: validation.errors.join(", "),
-          });
-          continue;
-        }
-
-        // 5. Xに投稿
+        // X に投稿
         const tweet = await postTweet(
           account.accessToken,
           account.accessSecret,
           content
         );
-        console.log(`[cron] Posted tweet for ${account.accountId}: ${tweet.tweetId}`);
 
-        // 6. DBに保存
+        // DB に保存
         const [savedPost] = await db
           .insert(posts)
           .values({
@@ -117,35 +64,30 @@ export async function GET(req: NextRequest) {
             tweetId: tweet.tweetId,
             postedAt: new Date(),
             status: "posted",
-            theme: strategy,
+            theme: "news",
+            sourceUrl: article.url,
           })
           .returning();
 
         await db.insert(prompts).values({
-          prompt,
+          prompt: article.title,
           output: content,
-          theme: strategy,
+          theme: "news",
           postId: savedPost.id,
         });
 
         results.push({
-          accountId: account.accountId,
           status: "posted",
-          strategy,
           tweetId: tweet.tweetId,
+          title: article.title,
           content,
-          ...(topPost && {
-            topPost: {
-              likes: topPost.likes,
-              impressions: topPost.impressions,
-              reposts: topPost.reposts,
-            },
-          }),
         });
+
+        console.log(`[cron] Posted news: ${article.title.slice(0, 40)}...`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(`[cron] Error for account ${account.accountId}:`, err);
-        results.push({ accountId: account.accountId, status: "failed", error: message });
+        console.error(`[cron] Failed to post article: ${article.title}`, err);
+        results.push({ status: "failed", title: article.title, error: message });
       }
     }
 
