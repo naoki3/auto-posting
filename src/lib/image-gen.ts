@@ -58,9 +58,13 @@ TWEET: [日本語のツイート文]`,
   const sceneMatch = text.match(/SCENE:\s*(.+)/);
   const tweetMatch = text.match(/TWEET:\s*(.+)/);
 
+  let tweetText = tweetMatch?.[1]?.trim() ?? "今日もいい一日になりますように✨ #日常";
+  // @で始まるとリプライ扱いになるため除去
+  tweetText = tweetText.replace(/^@+/, "");
+
   return {
     scene: sceneMatch?.[1]?.trim() ?? "A young Japanese woman wearing a mask in a seasonal Japanese setting",
-    tweetText: tweetMatch?.[1]?.trim() ?? "今日もいい一日になりますように✨ #日常",
+    tweetText,
   };
 }
 
