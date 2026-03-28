@@ -36,15 +36,19 @@ export async function GET(req: NextRequest) {
     for (const tweet of tweets) {
       try {
         // いいね（失敗しても続行）
+        let likeOk = false;
         try {
           await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+          likeOk = true;
         } catch (e) {
           console.warn(`[engage] Like failed for ${tweet.tweetId}:`, e);
         }
 
         // リポスト（失敗しても続行）
+        let repostOk = false;
         try {
           await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+          repostOk = true;
         } catch (e) {
           console.warn(`[engage] Repost failed for ${tweet.tweetId}:`, e);
         }
@@ -93,6 +97,8 @@ export async function GET(req: NextRequest) {
         results.push({
           status: "done",
           originalTweetId: tweet.tweetId,
+          likeOk,
+          repostOk,
           replyTweetId,
           comment,
           likes: tweet.likes,
