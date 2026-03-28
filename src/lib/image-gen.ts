@@ -33,7 +33,8 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 1. 画像生成用のシーン説明（英語・1文）
    - 日本人女性・マスク着用・その日に合った服装と背景
    - 全身が映るシーン・肌が自然に見える服装（浴衣・ワンピース・ショートパンツなど季節に合わせて）
-   - 例: "A young Japanese woman wearing a mask and summer dress, full body shot, standing at a beach at sunset"
+   - 何かで楽しく遊んでいる動作（水遊び・花火・スポーツ・ダンス・買い物・カフェ・ゲームなど季節に合わせて）
+   - 例: "A young Japanese woman wearing a mask and shorts, full body shot, playing with sparklers at night festival"
 
 2. Xに投稿するツイート文（日本語・100文字以内）
    - 女性らしい自然な口語体
