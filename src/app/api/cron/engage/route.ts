@@ -49,39 +49,46 @@ export async function GET(req: NextRequest) {
           console.warn(`[engage] Repost failed for ${tweet.tweetId}:`, e);
         }
 
-        // AIでリプライコメント生成
-        console.log(`[engage] Generating reply for tweet: "${tweet.text.slice(0, 80)}..."`);
-        const comment = await generateReplyComment(tweet.text);
-        console.log(`[engage] Generated comment: "${comment}"`);
+        // AIでリプライコメント生成・投稿（失敗しても続行）
+        let replyTweetId: string | null = null;
+        let comment: string | null = null;
+        try {
+          console.log(`[engage] Generating reply for tweet: "${tweet.text.slice(0, 80)}..."`);
+          comment = await generateReplyComment(tweet.text);
+          console.log(`[engage] Generated comment: "${comment}"`);
 
-        // リプライ投稿
-        const replyTweetId = await replyToTweet(
-          account.accessToken,
-          account.accessSecret,
-          tweet.tweetId,
-          comment
-        );
+          replyTweetId = await replyToTweet(
+            account.accessToken,
+            account.accessSecret,
+            tweet.tweetId,
+            comment
+          );
 
-        // DBに保存
-        const [savedPost] = await db
-          .insert(posts)
-          .values({
-            content: comment,
-            accountId: account.accountId,
-            tweetId: replyTweetId,
-            postedAt: new Date(),
-            status: "posted",
+          // DBに保存
+          const [savedPost] = await db
+            .insert(posts)
+            .values({
+              content: comment,
+              accountId: account.accountId,
+              tweetId: replyTweetId,
+              postedAt: new Date(),
+              status: "posted",
+              theme: "engage",
+              sourceUrl: `https://x.com/i/web/status/${tweet.tweetId}`,
+            })
+            .returning();
+
+          await db.insert(prompts).values({
+            prompt: tweet.text,
+            output: comment,
             theme: "engage",
-            sourceUrl: `https://x.com/i/web/status/${tweet.tweetId}`,
-          })
-          .returning();
+            postId: savedPost.id,
+          });
 
-        await db.insert(prompts).values({
-          prompt: tweet.text,
-          output: comment,
-          theme: "engage",
-          postId: savedPost.id,
-        });
+          console.log(`[engage] Replied to ${tweet.tweetId}: ${comment.slice(0, 30)}...`);
+        } catch (e) {
+          console.warn(`[engage] Reply failed for ${tweet.tweetId}:`, e);
+        }
 
         results.push({
           status: "done",
@@ -91,7 +98,6 @@ export async function GET(req: NextRequest) {
           likes: tweet.likes,
         });
 
-        console.log(`[engage] Replied to ${tweet.tweetId}: ${comment.slice(0, 30)}...`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`[engage] Failed for tweet ${tweet.tweetId}:`, err);
