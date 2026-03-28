@@ -187,18 +187,18 @@ export async function generateReplyComment(tweetText: string): Promise<string> {
 ${tweetText}
 
 【制約】
-- 70文字以内
+- 全体で100文字以内
 - 女性らしい自然な口語体（「〜だね」「〜だよね」「〜してみたい」など）
 - 共感・質問・一言感想のどれか
 - 絵文字は1〜2個まで
-- ハッシュタグは使わない
+- ツイートの内容に関連するハッシュタグを1〜2個末尾につける
 - 宣伝っぽくしない
 
 コメントのみ出力してください。`;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     const retryNote =
-      attempt > 1 ? `\n\n※前回の出力が長すぎました。70文字以内にしてください。` : "";
+      attempt > 1 ? `\n\n※前回の出力が長すぎました。100文字以内にしてください。` : "";
 
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -212,10 +212,10 @@ ${tweetText}
     }
 
     const content = rawContent.text.trim();
-    if (countTweetLength(content) <= 70) {
+    if (countTweetLength(content) <= 100) {
       return content;
     }
   }
 
-  throw new Error("Failed to generate reply within 70 characters after 3 attempts");
+  throw new Error("Failed to generate reply within 100 characters after 3 attempts");
 }
