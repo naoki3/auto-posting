@@ -175,3 +175,47 @@ ${article.description}
   throw new Error("Failed to generate news post within 140 characters after 3 attempts");
 }
 
+/**
+ * 話題のツイートに対するリプライコメントを生成する（最大3回リトライ）
+ */
+export async function generateReplyComment(tweetText: string): Promise<string> {
+  const prompt = `あなたはXで自然に会話するのが得意な女性です。
+
+以下のツイートに対して、自然なリプライコメントを1つ作成してください。
+
+【ツイート】
+${tweetText}
+
+【制約】
+- 70文字以内
+- 女性らしい自然な口語体（「〜だね」「〜だよね」「〜してみたい」など）
+- 共感・質問・一言感想のどれか
+- 絵文字は1〜2個まで
+- ハッシュタグは使わない
+- 宣伝っぽくしない
+
+コメントのみ出力してください。`;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const retryNote =
+      attempt > 1 ? `\n\n※前回の出力が長すぎました。70文字以内にしてください。` : "";
+
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 128,
+      messages: [{ role: "user", content: prompt + retryNote }],
+    });
+
+    const rawContent = message.content[0];
+    if (rawContent.type !== "text") {
+      throw new Error("Unexpected response type from AI");
+    }
+
+    const content = rawContent.text.trim();
+    if (countTweetLength(content) <= 70) {
+      return content;
+    }
+  }
+
+  throw new Error("Failed to generate reply within 70 characters after 3 attempts");
+}
