@@ -46,6 +46,8 @@ export async function searchPopularTweets(
   });
 
   const tweets = result.data.data ?? [];
+  console.log(`[engage] Raw search results: ${tweets.length} tweets`);
+  tweets.forEach((t) => console.log(`  - ${t.id}: likes=${t.public_metrics?.like_count} text="${t.text.slice(0, 40)}"`));
 
   return tweets
     .filter((t) => t.public_metrics && t.public_metrics.like_count > 0)
