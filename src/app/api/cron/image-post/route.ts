@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
     console.log(`[image-post] Media uploaded: ${mediaId}`);
 
     // 画像付きツイートを投稿
-    const tweet = await client.v2.tweet(tweetText, {
+    const tweet = await client.v2.tweet({
+      text: tweetText,
       media: { media_ids: [mediaId] },
     });
     console.log(`[image-post] Posted tweet: ${tweet.data.id}`);
