@@ -32,9 +32,11 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 
 1. 画像生成用のシーン説明（英語・1文）
    - 日本人女性・マスク着用・その日に合った服装と背景
-   - 全身が映るシーン・肌が自然に見える服装（浴衣・ワンピース・ショートパンツなど季節に合わせて）
-   - 何かで楽しく遊んでいる動作（水遊び・花火・スポーツ・ダンス・買い物・カフェ・ゲームなど季節に合わせて）
-   - 例: "A young Japanese woman wearing a mask and shorts, full body shot, playing with sparklers at night festival"
+   - 全身または上半身が映る自然な日常シーン
+   - カジュアルで季節感のある普段着（露出は控えめ）
+   - 楽しそうな自然な動作（カフェでスマホ・公園で読書・買い物・散歩・食事など）
+   - スマホで撮ったようなスナップ写真風・自然光・作り込みすぎない雰囲気
+   - 例: "A young Japanese woman wearing a mask and casual clothes, candid snapshot style, sitting at a cafe with a drink"
 
 2. Xに投稿するツイート文（日本語・100文字以内）
    - 女性らしい自然な口語体
@@ -71,7 +73,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Ultra-photorealistic, cinematic lighting, full body shot, same character as the reference image: same face, same dark hair, same mask. Natural skin visible on arms and legs. High resolution, professional photography style.`;
+  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Casual everyday fashion. Shot on smartphone, slightly imperfect, feels real and authentic, not overly polished or AI-generated looking.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-1",
