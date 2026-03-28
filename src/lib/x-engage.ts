@@ -93,6 +93,7 @@ export async function replyToTweet(
   tweetId: string,
   comment: string
 ): Promise<string> {
+  console.log(`[engage] Replying to ${tweetId} with: "${comment}" (${comment.length}chars)`);
   const client = getClient(accessToken, accessSecret);
   const tweet = await client.v2.reply(comment, tweetId);
   return tweet.data.id;
