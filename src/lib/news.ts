@@ -87,10 +87,9 @@ export async function fetchFromNewsAPI(
  */
 export async function fetchTopNews(
   postedUrls: Set<string>,
-  limit = 3
+  limit = 3,
+  source = process.env.NEWS_SOURCE ?? "rss"
 ): Promise<NewsArticle[]> {
-  const source = process.env.NEWS_SOURCE ?? "rss";
-
   if (source === "newsapi") {
     return fetchFromNewsAPI(postedUrls, limit);
   }
