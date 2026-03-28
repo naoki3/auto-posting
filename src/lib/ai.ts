@@ -78,7 +78,7 @@ ${topPost.content}
 - 構成: フック（共感・驚き）→ 価値（具体的情報）→ CTA（行動喚起）
 - 女性らしい自然な口語体（「〜だよ」「〜してみて」「〜なんだよね」など）
 - AIっぽい硬い表現や男性的な断定表現は避ける
-- ハッシュタグは使わない
+- 投稿内容に関連するハッシュタグを1〜2個末尾につける
 - 絵文字は2〜3個まで
 - 前日の投稿をそのままコピーしない（テーマを変えること）
 
@@ -108,7 +108,7 @@ function buildFallbackPrompt(): {
 - 改行を適切に使うこと
 - 女性らしい自然な口語体（「〜だよ」「〜してみて」「〜なんだよね」など）
 - AIっぽい硬い表現や男性的な断定表現は避ける
-- ハッシュタグは使わない
+- 投稿内容に関連するハッシュタグを1〜2個末尾につける
 - 絵文字は2〜3個まで
 
 投稿文のみを出力してください。前置きや説明は不要です。`;
@@ -137,10 +137,10 @@ ${article.description}
 最終行: 一言コメント（感想・意見・驚き）
 
 【制約】
-- URL（23文字）を末尾に付けるので、本文は110文字以内に収めること
+- URL（23文字）とハッシュタグを末尾に付けるので、本文は90文字以内に収めること
 - 女性らしい自然な口語体（「〜だね」「〜みたい」「〜なのかな」など）
 - 絵文字は1〜2個まで
-- ハッシュタグは使わない
+- 記事内容に関連するハッシュタグを1〜2個末尾につける
 - AIっぽい硬い表現は避ける
 
 投稿本文のみを出力してください（URLは含めない）。`;
@@ -148,7 +148,7 @@ ${article.description}
   for (let attempt = 1; attempt <= 3; attempt++) {
     const retryNote =
       attempt > 1
-        ? `\n\n※前回の出力が長すぎました。本文を110文字以内に収めてください。`
+        ? `\n\n※前回の出力が長すぎました。本文を90文字以内に収めてください。`
         : "";
 
     const message = await client.messages.create({
@@ -173,4 +173,49 @@ ${article.description}
   }
 
   throw new Error("Failed to generate news post within 140 characters after 3 attempts");
+}
+
+/**
+ * 話題のツイートに対するリプライコメントを生成する（最大3回リトライ）
+ */
+export async function generateReplyComment(tweetText: string): Promise<string> {
+  const prompt = `あなたはXで自然に会話するのが得意な女性です。
+
+以下のツイートに対して、自然なリプライコメントを1つ作成してください。
+
+【ツイート】
+${tweetText}
+
+【制約】
+- 全体で100文字以内
+- 女性らしい自然な口語体（「〜だね」「〜だよね」「〜してみたい」など）
+- 共感・質問・一言感想のどれか
+- 絵文字は1〜2個まで
+- ツイートの内容に関連するハッシュタグを1〜2個末尾につける
+- 宣伝っぽくしない
+
+コメントのみ出力してください。`;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const retryNote =
+      attempt > 1 ? `\n\n※前回の出力が長すぎました。100文字以内にしてください。` : "";
+
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 128,
+      messages: [{ role: "user", content: prompt + retryNote }],
+    });
+
+    const rawContent = message.content[0];
+    if (rawContent.type !== "text") {
+      throw new Error("Unexpected response type from AI");
+    }
+
+    const content = rawContent.text.trim();
+    if (countTweetLength(content) <= 100) {
+      return content;
+    }
+  }
+
+  throw new Error("Failed to generate reply within 100 characters after 3 attempts");
 }
