@@ -1,0 +1,103 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db, accounts, posts, prompts } from "@/lib/db";
+import { generateReplyComment } from "@/lib/ai";
+import { searchPopularTweets, likeTweet, repostTweet, replyToTweet } from "@/lib/x-engage";
+
+function isAuthorized(req: NextRequest): boolean {
+  if (process.env.NODE_ENV === "development") return true;
+  const authHeader = req.headers.get("authorization")?.trim();
+  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
+}
+
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const allAccounts = await db.select().from(accounts);
+    if (allAccounts.length === 0) {
+      return NextResponse.json({ message: "No accounts found" }, { status: 200 });
+    }
+    const account = allAccounts[0];
+
+    // 話題のツイートを検索
+    const tweets = await searchPopularTweets(
+      account.accessToken,
+      account.accessSecret
+    );
+
+    if (tweets.length === 0) {
+      return NextResponse.json({ message: "No tweets found" }, { status: 200 });
+    }
+
+    const results = [];
+
+    for (const tweet of tweets) {
+      try {
+        // いいね
+        await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+
+        // リポスト
+        await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+
+        // AIでリプライコメント生成
+        const comment = await generateReplyComment(tweet.text);
+
+        // リプライ投稿
+        const replyTweetId = await replyToTweet(
+          account.accessToken,
+          account.accessSecret,
+          tweet.tweetId,
+          comment
+        );
+
+        // DBに保存
+        const [savedPost] = await db
+          .insert(posts)
+          .values({
+            content: comment,
+            accountId: account.accountId,
+            tweetId: replyTweetId,
+            postedAt: new Date(),
+            status: "posted",
+            theme: "engage",
+            sourceUrl: `https://x.com/i/web/status/${tweet.tweetId}`,
+          })
+          .returning();
+
+        await db.insert(prompts).values({
+          prompt: tweet.text,
+          output: comment,
+          theme: "engage",
+          postId: savedPost.id,
+        });
+
+        results.push({
+          status: "done",
+          originalTweetId: tweet.tweetId,
+          replyTweetId,
+          comment,
+          likes: tweet.likes,
+        });
+
+        console.log(`[engage] Replied to ${tweet.tweetId}: ${comment.slice(0, 30)}...`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[engage] Failed for tweet ${tweet.tweetId}:`, err);
+        results.push({ status: "failed", tweetId: tweet.tweetId, error: message });
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      results,
+      doneCount: results.filter((r) => r.status === "done").length,
+      failedCount: results.filter((r) => r.status === "failed").length,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[engage] Fatal error:", err);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
