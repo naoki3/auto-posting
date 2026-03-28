@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db, accounts } from "@/lib/db";
 import { searchPopularTweets, likeTweet, repostTweet } from "@/lib/x-engage";
 
 function isAuthorized(req: NextRequest): boolean {
