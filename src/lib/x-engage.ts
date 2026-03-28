@@ -61,7 +61,7 @@ export async function searchPopularTweets(
 }
 
 /**
- * ツイートにいいねする
+ * ツイートにいいねする（v1.1）
  */
 export async function likeTweet(
   accessToken: string,
@@ -69,12 +69,11 @@ export async function likeTweet(
   tweetId: string
 ): Promise<void> {
   const client = getClient(accessToken, accessSecret);
-  const me = await client.v2.me();
-  await client.v2.like(me.data.id, tweetId);
+  await client.v1.post("favorites/create.json", { id: tweetId });
 }
 
 /**
- * ツイートをリポストする
+ * ツイートをリポストする（v1.1）
  */
 export async function repostTweet(
   accessToken: string,
@@ -82,8 +81,7 @@ export async function repostTweet(
   tweetId: string
 ): Promise<void> {
   const client = getClient(accessToken, accessSecret);
-  const me = await client.v2.me();
-  await client.v2.retweet(me.data.id, tweetId);
+  await client.v1.post(`statuses/retweet/${tweetId}.json`, {});
 }
 
 /**
