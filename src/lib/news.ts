@@ -13,12 +13,16 @@ const RSS_FEED_URL = "https://news.yahoo.co.jp/rss/topics/top-picks.xml";
 /**
  * Yahoo!ニュース RSS から記事を取得する
  */
-async function fetchFromRSS(): Promise<NewsArticle[]> {
+export async function fetchFromRSS(
+  postedUrls: Set<string>,
+  limit = 3
+): Promise<NewsArticle[]> {
   const parser = new Parser();
   const feed = await parser.parseURL(RSS_FEED_URL);
 
   return (feed.items ?? [])
-    .filter((item) => item.title && item.link)
+    .filter((item) => item.title && item.link && !postedUrls.has(item.link))
+    .slice(0, limit)
     .map((item) => ({
       title: item.title!,
       description: item.contentSnippet ?? item.title!,
@@ -29,11 +33,14 @@ async function fetchFromRSS(): Promise<NewsArticle[]> {
 }
 
 /**
- * NewsAPI から記事を取得する（APIキーが設定されている場合のみ）
+ * NewsAPI から記事を取得する
  */
-async function fetchFromNewsAPI(): Promise<NewsArticle[]> {
+export async function fetchFromNewsAPI(
+  postedUrls: Set<string>,
+  limit = 3
+): Promise<NewsArticle[]> {
   const apiKey = process.env.NEWS_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) throw new Error("NEWS_API_KEY is not set");
 
   const url = new URL("https://newsapi.org/v2/everything");
   url.searchParams.set("q", "日本");
@@ -43,10 +50,11 @@ async function fetchFromNewsAPI(): Promise<NewsArticle[]> {
   url.searchParams.set("apiKey", apiKey);
 
   const res = await fetch(url.toString());
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`NewsAPI error: ${res.status}`);
 
   const data = (await res.json()) as {
     status: string;
+    message?: string;
     articles: Array<{
       title: string;
       description: string | null;
@@ -56,10 +64,13 @@ async function fetchFromNewsAPI(): Promise<NewsArticle[]> {
     }>;
   };
 
-  if (data.status !== "ok") return [];
+  if (data.status !== "ok") {
+    throw new Error(`NewsAPI returned error: ${data.message ?? data.status}`);
+  }
 
   return data.articles
-    .filter((a) => a.title && a.description)
+    .filter((a) => a.title && a.description && !postedUrls.has(a.url))
+    .slice(0, limit)
     .map((a) => ({
       title: a.title,
       description: a.description!,
@@ -70,33 +81,18 @@ async function fetchFromNewsAPI(): Promise<NewsArticle[]> {
 }
 
 /**
- * NewsAPI + Yahoo RSS の両方から取得してマージ
- * 既投稿URLを除外して最大 limit 件返す
+ * NEWS_SOURCE 環境変数で切り替え
+ * NEWS_SOURCE=newsapi → NewsAPI
+ * NEWS_SOURCE=rss（デフォルト） → Yahoo RSS
  */
 export async function fetchTopNews(
   postedUrls: Set<string>,
   limit = 3
 ): Promise<NewsArticle[]> {
-  const [rssArticles, newsApiArticles] = await Promise.allSettled([
-    fetchFromRSS(),
-    fetchFromNewsAPI(),
-  ]);
+  const source = process.env.NEWS_SOURCE ?? "rss";
 
-  const rss = rssArticles.status === "fulfilled" ? rssArticles.value : [];
-  const api = newsApiArticles.status === "fulfilled" ? newsApiArticles.value : [];
-
-  console.log(`[news] RSS: ${rss.length} articles, NewsAPI: ${api.length} articles`);
-
-  // マージして重複URLを除外
-  const seen = new Set<string>();
-  const merged: NewsArticle[] = [];
-
-  for (const article of [...rss, ...api]) {
-    if (!seen.has(article.url) && !postedUrls.has(article.url)) {
-      seen.add(article.url);
-      merged.push(article);
-    }
+  if (source === "newsapi") {
+    return fetchFromNewsAPI(postedUrls, limit);
   }
-
-  return merged.slice(0, limit);
+  return fetchFromRSS(postedUrls, limit);
 }
