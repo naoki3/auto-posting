@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
         }
 
         // AIでリプライコメント生成
+        console.log(`[engage] Generating reply for tweet: "${tweet.text.slice(0, 80)}..."`);
         const comment = await generateReplyComment(tweet.text);
+        console.log(`[engage] Generated comment: "${comment}"`);
 
         // リプライ投稿
         const replyTweetId = await replyToTweet(
