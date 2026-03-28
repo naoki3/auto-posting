@@ -3,6 +3,8 @@ import { db, accounts } from "@/lib/db";
 import { generateCharacterImage } from "@/lib/image-gen";
 import { TwitterApi } from "twitter-api-v2";
 
+export const maxDuration = 60; // Vercel最大60秒
+
 function isAuthorized(req: NextRequest): boolean {
   if (process.env.NODE_ENV === "development") return true;
   const authHeader = req.headers.get("authorization")?.trim();
