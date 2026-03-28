@@ -34,8 +34,12 @@ export async function GET(req: NextRequest) {
 
     const postedUrls = new Set(postedRows.map((r) => r.sourceUrl!));
 
-    // NewsAPI から未投稿のニュースを3件取得
-    const articles = await fetchTopNews(postedUrls, 3);
+    // ソースを選択（クエリパラメータ > 環境変数 > デフォルトRSS）
+    const source = req.nextUrl.searchParams.get("source") ?? process.env.NEWS_SOURCE ?? "rss";
+    console.log(`[cron] News source: ${source}`);
+
+    // ニュースを3件取得
+    const articles = await fetchTopNews(postedUrls, 3, source);
 
     if (articles.length === 0) {
       return NextResponse.json({ message: "No new articles found" }, { status: 200 });

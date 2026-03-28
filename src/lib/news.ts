@@ -1,3 +1,5 @@
+import Parser from "rss-parser";
+
 export interface NewsArticle {
   title: string;
   description: string;
@@ -6,11 +8,34 @@ export interface NewsArticle {
   source: string;
 }
 
+const RSS_FEED_URL = "https://news.yahoo.co.jp/rss/topics/top-picks.xml";
+
 /**
- * NewsAPI から人気ニュースを取得する
- * 既投稿URLを除外して最大 limit 件返す
+ * Yahoo!ニュース RSS から記事を取得する
  */
-export async function fetchTopNews(
+export async function fetchFromRSS(
+  postedUrls: Set<string>,
+  limit = 3
+): Promise<NewsArticle[]> {
+  const parser = new Parser();
+  const feed = await parser.parseURL(RSS_FEED_URL);
+
+  return (feed.items ?? [])
+    .filter((item) => item.title && item.link && !postedUrls.has(item.link))
+    .slice(0, limit)
+    .map((item) => ({
+      title: item.title!,
+      description: item.contentSnippet ?? item.title!,
+      url: item.link!,
+      publishedAt: item.pubDate ?? new Date().toISOString(),
+      source: "Yahoo!ニュース",
+    }));
+}
+
+/**
+ * NewsAPI から記事を取得する
+ */
+export async function fetchFromNewsAPI(
   postedUrls: Set<string>,
   limit = 3
 ): Promise<NewsArticle[]> {
@@ -25,11 +50,11 @@ export async function fetchTopNews(
   url.searchParams.set("apiKey", apiKey);
 
   const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`NewsAPI error: ${res.status} ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`NewsAPI error: ${res.status}`);
 
   const data = (await res.json()) as {
+    status: string;
+    message?: string;
     articles: Array<{
       title: string;
       description: string | null;
@@ -39,8 +64,12 @@ export async function fetchTopNews(
     }>;
   };
 
+  if (data.status !== "ok") {
+    throw new Error(`NewsAPI returned error: ${data.message ?? data.status}`);
+  }
+
   return data.articles
-    .filter((a) => !postedUrls.has(a.url) && a.title && a.description)
+    .filter((a) => a.title && a.description && !postedUrls.has(a.url))
     .slice(0, limit)
     .map((a) => ({
       title: a.title,
@@ -49,4 +78,20 @@ export async function fetchTopNews(
       publishedAt: a.publishedAt,
       source: a.source.name,
     }));
+}
+
+/**
+ * NEWS_SOURCE 環境変数で切り替え
+ * NEWS_SOURCE=newsapi → NewsAPI
+ * NEWS_SOURCE=rss（デフォルト） → Yahoo RSS
+ */
+export async function fetchTopNews(
+  postedUrls: Set<string>,
+  limit = 3,
+  source = process.env.NEWS_SOURCE ?? "rss"
+): Promise<NewsArticle[]> {
+  if (source === "newsapi") {
+    return fetchFromNewsAPI(postedUrls, limit);
+  }
+  return fetchFromRSS(postedUrls, limit);
 }
