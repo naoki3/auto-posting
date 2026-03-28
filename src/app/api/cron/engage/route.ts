@@ -53,10 +53,12 @@ export async function GET(req: NextRequest) {
           console.warn(`[engage] Repost failed for ${tweet.tweetId}:`, e);
         }
 
-        // AIでリプライコメント生成・投稿（失敗しても続行）
+        // AIでリプライコメント生成・投稿（いいね・リポスト両方失敗時はスキップ）
         let replyTweetId: string | null = null;
         let comment: string | null = null;
-        try {
+        if (!likeOk && !repostOk) {
+          console.warn(`[engage] Skipping reply for ${tweet.tweetId}: both like and repost failed`);
+        } else try {
           console.log(`[engage] Generating reply for tweet: "${tweet.text.slice(0, 80)}..."`);
           comment = await generateReplyComment(tweet.text);
           console.log(`[engage] Generated comment: "${comment}"`);
