@@ -30,6 +30,8 @@ export async function fetchTopNews(
   }
 
   const data = (await res.json()) as {
+    status: string;
+    message?: string;
     articles: Array<{
       title: string;
       description: string | null;
@@ -38,6 +40,12 @@ export async function fetchTopNews(
       source: { name: string };
     }>;
   };
+
+  if (data.status !== "ok") {
+    throw new Error(`NewsAPI returned error: ${data.message ?? data.status}`);
+  }
+
+  console.log(`[news] Fetched ${data.articles.length} articles`);
 
   return data.articles
     .filter((a) => !postedUrls.has(a.url) && a.title && a.description)
