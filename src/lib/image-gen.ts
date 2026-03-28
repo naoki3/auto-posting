@@ -31,12 +31,15 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 季節感や行事、日常のシーンをもとに、以下を考えてください。
 
 1. 画像生成用のシーン説明（英語・1文）
-   - 日本人女性・マスク着用・その日に合った服装と背景
-   - 全身または上半身が映る自然な日常シーン
-   - カジュアルで季節感のある普段着（露出は控えめ）
-   - 楽しそうな自然な動作（カフェでスマホ・公園で読書・買い物・散歩・食事など）
-   - スマホで撮ったようなスナップ写真風・自然光・作り込みすぎない雰囲気
-   - 例: "A young Japanese woman wearing a mask and casual clothes, candid snapshot style, sitting at a cafe with a drink"
+   - 日本人女性・マスク着用
+   - 以下のカテゴリからランダムに1つ選んでユニークで面白いシーンを考える：
+     * 非日常・旅行系（海外の街角・砂漠・雪山・トロピカルビーチなど）
+     * トレンド・映え系（インスタ映えカフェ・廃墟・夜景スポットなど）
+     * ギャップ・おもしろ系（ゲーセンでガチ勢・釣り・キャンプで失敗・UFOキャッチャーなど）
+     * 季節イベント系（花火・お祭り・雪だるま・紅葉狩りなど）
+   - ユーモアのある状況・ちょっとおかしい構図・思わず笑えるシーン
+   - 全身または上半身・カジュアルな服装
+   - 例: "A young Japanese woman wearing a mask, full body, frantically trying to catch a giant stuffed bear at an arcade UFO catcher machine, looking very serious and competitive"
 
 2. Xに投稿するツイート文（日本語・100文字以内）
    - 女性らしい自然な口語体
@@ -73,7 +76,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Casual everyday fashion. Shot on smartphone, slightly imperfect, feels real and authentic, not overly polished or AI-generated looking.`;
+  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Shot on smartphone, slightly imperfect, feels real and authentic, funny and charming moment captured naturally.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-1",
