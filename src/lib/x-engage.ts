@@ -38,10 +38,10 @@ export async function searchPopularTweets(
   const keyword = keywords[Math.floor(Math.random() * keywords.length)];
   console.log(`[engage] Searching tweets for keyword: ${keyword}`);
 
-  const result = await client.v2.search(keyword, {
+  const result = await client.v2.search(`${keyword} lang:ja`, {
     sort_order: "relevancy",
     max_results: 10,
-    "tweet.fields": ["public_metrics", "author_id"],
+    "tweet.fields": ["public_metrics", "author_id", "reply_settings"],
     expansions: ["author_id"],
   });
 
@@ -50,7 +50,7 @@ export async function searchPopularTweets(
   tweets.forEach((t) => console.log(`  - ${t.id}: likes=${t.public_metrics?.like_count} text="${t.text.slice(0, 40)}"`));
 
   return tweets
-    .filter((t) => t.public_metrics && t.public_metrics.like_count > 0)
+    .filter((t) => t.public_metrics && t.public_metrics.like_count > 0 && t.reply_settings === "everyone")
     .sort((a, b) => (b.public_metrics?.like_count ?? 0) - (a.public_metrics?.like_count ?? 0))
     .slice(0, limit)
     .map((t) => ({
