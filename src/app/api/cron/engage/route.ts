@@ -35,11 +35,19 @@ export async function GET(req: NextRequest) {
 
     for (const tweet of tweets) {
       try {
-        // いいね
-        await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+        // いいね（失敗しても続行）
+        try {
+          await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+        } catch (e) {
+          console.warn(`[engage] Like failed for ${tweet.tweetId}:`, e);
+        }
 
-        // リポスト
-        await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+        // リポスト（失敗しても続行）
+        try {
+          await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+        } catch (e) {
+          console.warn(`[engage] Repost failed for ${tweet.tweetId}:`, e);
+        }
 
         // AIでリプライコメント生成
         const comment = await generateReplyComment(tweet.text);
