@@ -31,15 +31,16 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 季節感や行事、日常のシーンをもとに、以下を考えてください。
 
 1. 画像生成用のシーン説明（英語・1文）
-   - 日本人女性・マスク着用
-   - 以下のカテゴリからランダムに1つ選んでユニークで面白いシーンを考える：
-     * 非日常・旅行系（海外の街角・砂漠・雪山・トロピカルビーチなど）
-     * トレンド・映え系（インスタ映えカフェ・廃墟・夜景スポットなど）
-     * ギャップ・おもしろ系（ゲーセンでガチ勢・釣り・キャンプで失敗・UFOキャッチャーなど）
-     * 季節イベント系（花火・お祭り・雪だるま・紅葉狩りなど）
-   - ユーモアのある状況・ちょっとおかしい構図・思わず笑えるシーン
-   - 全身または上半身・カジュアルな服装
-   - 例: "A young Japanese woman wearing a mask, full body, frantically trying to catch a giant stuffed bear at an arcade UFO catcher machine, looking very serious and competitive"
+   - 日本人女性・マスク着用・かわいらしい雰囲気（大きめの目・ふんわりした髪・明るい表情）
+   - 以下のカテゴリからランダムに1つ選んでバラエティ豊かなシーンを考える：
+     * 日常・カフェ系（友達とカフェでおしゃべり・コーヒーを飲みながらスマホ・パンケーキを食べてる）
+     * お出かけ系（ショッピング・映画館・水族館・夜景スポット・フォトブース）
+     * アクティブ系（海・プール・スポーツ観戦・フェス・キャンプ）
+     * 季節イベント系（花火・お祭り・雪遊び・花見・ハロウィン）
+     * おもしろ・ギャップ系（ゲーセン本気モード・UFOキャッチャー・ボウリング）
+   - 友達や賑やかな背景が入ってもOK・主役として自然に存在している構図
+   - 少し色気のある自然なポーズ（肩出し・袖なし・ヘルシーな露出感）
+   - 例: "A cute young Japanese woman wearing a mask, sitting at a trendy cafe with friends, laughing over coffee and desserts, slightly off-shoulder casual outfit"
 
 2. Xに投稿するツイート文（日本語・100文字以内）
    - 女性らしい自然な口語体
@@ -80,7 +81,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Shot on smartphone, slightly imperfect, feels real and authentic, funny and charming moment captured naturally.`;
+  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Cute and charming appearance, slightly stylish and subtly sexy but tasteful. Shot on smartphone, feels real and authentic, lively and fun atmosphere.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-1",
