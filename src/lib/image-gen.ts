@@ -23,37 +23,32 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 256,
+    max_tokens: 512,
     messages: [
       {
         role: "user",
         content: `今日は${today}です。
-季節感や行事、日常のシーンをもとに、以下を考えてください。
+かわいい日本人女性の画像を生成するための設定を考えてください。
+毎回バラエティ豊かで面白いものにしてください。
 
-1. 画像生成用のシーン説明（英語・1文）
-   - 日本人女性・マスク着用・かわいらしい雰囲気（大きめの目・ふんわりした髪・明るい表情）
-   - 以下のカテゴリからランダムに1つ選んでバラエティ豊かなシーンを考える：
-     * 日常・カフェ系（友達とカフェでおしゃべり・タピオカ・パンケーキ・読書・勉強カフェ）
-     * グルメ系（屋台・ラーメン・焼肉・スイーツバイキング・コンビニ前でアイス）
-     * お出かけ系（ショッピング・映画館・水族館・動物園・美術館・フォトブース・ゲーセン）
-     * 夜遊び系（夜景バー・屋台祭り・クラブ・ネオン街・花火）
-     * 旅行系（空港・新幹線・ホテルプール・海外の街角・砂浜・温泉旅館）
-     * アクティブ系（海水浴・スノボ・スポーツ観戦・フェス・ヨガ・サイクリング）
-     * 季節イベント系（花見・お祭り・ハロウィン・クリスマスマーケット・雪遊び）
-     * おもしろ・ギャップ系（UFOキャッチャー本気・釣り・ボウリング・脱出ゲーム・VR体験）
-     * まったり系（家でゲーム・お風呂上がりにアイス・ベッドでごろごろ・ネイルサロン）
-   - 友達や賑やかな背景が入ってもOK・主役として自然に存在している構図
-   - 服装はシーンに合わせて露出少し多めに（ミニスカート・ショート丈トップス・キャミソール・水着・浴衣の着崩しなど）
-   - 例: "A cute young Japanese woman wearing a mask, at a night festival in a slightly open yukata, holding sparklers with friends, warm bokeh lights in background"
+以下の項目をすべて日本語で決めてください：
+・場所: （例：渋谷のカフェ、沖縄のビーチ、雪山のロッジなど）
+・時間帯: （例：昼下がり、夕暮れ、深夜など）
+・天気: （例：晴れ、小雨、雪など）
+・服装: （例：ミニスカートにキャミソール、水着、浴衣の着崩しなど。露出は少し多めで）
+・髪型: （例：ゆるいポニーテール、おろしたまま、お団子など）
+・表情: （例：笑顔、驚いた顔、真剣な顔など）
+・カメラ: （例：スマホの自撮り、友達に撮ってもらった、盗み撮り風など）
+・雰囲気: （例：賑やか、ほっこり、ドキドキなど）
+・テーマ: （例：夏の思い出、女子会、一人旅など）
 
-2. Xに投稿するツイート文（日本語・100文字以内）
-   - 女性らしい自然な口語体
-   - 絵文字1〜2個
-   - 関連ハッシュタグ1〜2個を末尾に
+それをもとに：
+1. OpenAI画像生成用の英語プロンプト（1〜2文。上記の設定をすべて含める）
+2. Xに投稿するツイート文（日本語・100文字以内・女性らしい口語体・絵文字1〜2個・関連ハッシュタグ1〜2個を末尾に）
 
 以下の形式で出力してください（他の文章は不要）:
-SCENE: [英語のシーン説明]
-TWEET: [日本語のツイート文]`,
+SCENE: [英語プロンプト]
+TWEET: [日本語ツイート文]`,
       },
     ],
   });
@@ -85,7 +80,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Candid snapshot style, natural lighting, same character as the reference image: same face, same dark hair, same mask. Cute and charming appearance, slightly stylish and subtly sexy but tasteful. Shot on smartphone, feels real and authentic, lively and fun atmosphere.`;
+  const prompt = `${scene}. Same character as the reference image: same face, same dark hair, same mask. Cute and charming Japanese girl. Photorealistic, natural lighting, feels candid and authentic.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-1",
