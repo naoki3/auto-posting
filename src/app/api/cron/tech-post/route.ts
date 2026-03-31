@@ -6,7 +6,11 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SOURCE_USERNAME = "Naokyyy3";
+// カンマ区切りで複数指定可能（例: "Naokyyy3,anotheruser"）
+const SOURCE_USERNAMES = (process.env.TECH_SOURCE_ACCOUNTS ?? "Naokyyy3")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
 
 function isAuthorized(req: NextRequest): boolean {
   if (process.env.NODE_ENV === "development") return true;
@@ -76,77 +80,70 @@ export async function GET(req: NextRequest) {
       accessSecret,
     });
 
-    // @Naokyyy3のユーザーIDを取得
-    const userRes = await client.v2.userByUsername(SOURCE_USERNAME);
-    if (!userRes.data) {
-      return NextResponse.json({ error: `User @${SOURCE_USERNAME} not found` }, { status: 404 });
-    }
-    const userId = userRes.data.id;
-
-    // 直近のツイートを取得（リツイート・リプライ除外）
-    const timeline = await client.v2.userTimeline(userId, {
-      max_results: 10,
-      "tweet.fields": ["id", "text", "created_at"],
-      exclude: ["retweets", "replies"],
-    });
-
-    const tweets = timeline.data.data ?? [];
-    if (tweets.length === 0) {
-      return NextResponse.json({ message: "No tweets found" }, { status: 200 });
-    }
-
     // 投稿済みのsourceUrlを取得して重複チェック
     const postedRows = await db
       .select({ sourceUrl: posts.sourceUrl })
       .from(posts)
       .where(eq(posts.theme, "tech"))
       .orderBy(desc(posts.createdAt))
-      .limit(100);
+      .limit(200);
     const postedUrls = new Set(postedRows.map((r) => r.sourceUrl));
-
-    // 未投稿のツイートを最大3件取得
-    const newTweets = tweets
-      .filter((t) => {
-        const url = `https://x.com/${SOURCE_USERNAME}/status/${t.id}`;
-        return !postedUrls.has(url);
-      })
-      .slice(0, 3);
-
-    if (newTweets.length === 0) {
-      return NextResponse.json({ message: "No new tweets to translate" }, { status: 200 });
-    }
 
     const results = [];
 
-    for (const tweet of newTweets) {
-      try {
-        const sourceUrl = `https://x.com/${SOURCE_USERNAME}/status/${tweet.id}`;
+    for (const username of SOURCE_USERNAMES) {
+      // ユーザーIDを取得
+      const userRes = await client.v2.userByUsername(username);
+      if (!userRes.data) {
+        console.warn(`[tech-post] User @${username} not found, skipping`);
+        continue;
+      }
+      const userId = userRes.data.id;
 
-        // 翻訳
-        const translated = await translateTweet(tweet.text);
-        console.log(`[tech-post] Translated: "${translated}"`);
+      // 直近のツイートを取得（リツイート・リプライ除外）
+      const timeline = await client.v2.userTimeline(userId, {
+        max_results: 10,
+        "tweet.fields": ["id", "text", "created_at"],
+        exclude: ["retweets", "replies"],
+      });
 
-        // 投稿（翻訳文 + 元ツイートURL）
-        const postText = `${translated}\n${sourceUrl}`;
-        const posted = await client.v2.tweet(postText);
+      const tweets = timeline.data.data ?? [];
 
-        // DB保存
-        await db.insert(posts).values({
-          content: translated,
-          accountId: TECH_ACCOUNT_ID,
-          tweetId: posted.data.id,
-          postedAt: new Date(),
-          status: "posted",
-          theme: "tech",
-          sourceUrl,
-        });
+      // 未投稿のツイートを最大3件取得
+      const newTweets = tweets
+        .filter((t) => !postedUrls.has(`https://x.com/${username}/status/${t.id}`))
+        .slice(0, 3);
 
-        results.push({ status: "posted", tweetId: posted.data.id, translated, sourceUrl });
-        console.log(`[tech-post] Posted: ${posted.data.id}`);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[tech-post] Failed for tweet ${tweet.id}:`, err);
-        results.push({ status: "failed", tweetId: tweet.id, error: message });
+      for (const tweet of newTweets) {
+        try {
+          const sourceUrl = `https://x.com/${username}/status/${tweet.id}`;
+
+          // 翻訳
+          const translated = await translateTweet(tweet.text);
+          console.log(`[tech-post] @${username} Translated: "${translated}"`);
+
+          // 投稿（翻訳文 + 元ツイートURL）
+          const posted = await client.v2.tweet(`${translated}\n${sourceUrl}`);
+
+          // DB保存
+          await db.insert(posts).values({
+            content: translated,
+            accountId: TECH_ACCOUNT_ID,
+            tweetId: posted.data.id,
+            postedAt: new Date(),
+            status: "posted",
+            theme: "tech",
+            sourceUrl,
+          });
+
+          postedUrls.add(sourceUrl); // 同一実行内の重複防止
+          results.push({ status: "posted", username, tweetId: posted.data.id, translated, sourceUrl });
+          console.log(`[tech-post] Posted: ${posted.data.id}`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[tech-post] Failed for @${username} tweet ${tweet.id}:`, err);
+          results.push({ status: "failed", username, tweetId: tweet.id, error: message });
+        }
       }
     }
 
