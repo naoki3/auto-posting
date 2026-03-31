@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db, accounts } from "@/lib/db";
 // import { posts, prompts } from "@/lib/db";
 // import { generateReplyComment } from "@/lib/ai";
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const allAccounts = await db.select().from(accounts);
+    const allAccounts = await db.select().from(accounts).where(eq(accounts.accountId, "ito131913"));
     if (allAccounts.length === 0) {
       return NextResponse.json({ message: "No accounts found" }, { status: 200 });
     }

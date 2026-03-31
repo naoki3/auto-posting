@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // アカウントを取得
-    const allAccounts = await db.select().from(accounts);
+    const allAccounts = await db.select().from(accounts).where(eq(accounts.accountId, "ito131913"));
     if (allAccounts.length === 0) {
       return NextResponse.json({ message: "No accounts found" }, { status: 200 });
     }
