@@ -56,10 +56,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const appKey = process.env.TECH_ACCOUNT_APP_KEY;
+  const appSecret = process.env.TECH_ACCOUNT_APP_SECRET;
   const accessToken = process.env.TECH_ACCOUNT_ACCESS_TOKEN;
   const accessSecret = process.env.TECH_ACCOUNT_ACCESS_SECRET;
-  if (!accessToken || !accessSecret) {
-    return NextResponse.json({ error: "TECH_ACCOUNT_ACCESS_TOKEN or TECH_ACCOUNT_ACCESS_SECRET is not set" }, { status: 500 });
+  if (!appKey || !appSecret || !accessToken || !accessSecret) {
+    return NextResponse.json({ error: "TECH_ACCOUNT credentials are not set" }, { status: 500 });
   }
 
   const TECH_ACCOUNT_ID = "tech_account";
@@ -75,8 +77,8 @@ export async function GET(req: NextRequest) {
       });
 
     const client = new TwitterApi({
-      appKey: process.env.X_API_KEY!,
-      appSecret: process.env.X_API_SECRET!,
+      appKey,
+      appSecret,
       accessToken,
       accessSecret,
     });
