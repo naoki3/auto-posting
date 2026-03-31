@@ -119,7 +119,14 @@ export async function GET(req: NextRequest) {
 
       for (const tweet of newTweets) {
         try {
-          const sourceUrl = `https://x.com/${username}/status/${tweet.id}`;
+          // URLのみのツイートはスキップ
+        const textWithoutUrls = tweet.text.replace(/https?:\/\/\S+/g, "").trim();
+        if (textWithoutUrls.length < 10) {
+          console.log(`[tech-post] Skipping URL-only tweet: ${tweet.id}`);
+          continue;
+        }
+
+        const sourceUrl = `https://x.com/${username}/status/${tweet.id}`;
 
           // 翻訳
           const translated = await translateTweet(tweet.text);
