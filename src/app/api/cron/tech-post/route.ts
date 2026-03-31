@@ -58,23 +58,23 @@ export async function GET(req: NextRequest) {
 
   const appKey = process.env.TECH_ACCOUNT_APP_KEY;
   const appSecret = process.env.TECH_ACCOUNT_APP_SECRET;
-  const accessToken = process.env.TECH_ACCOUNT_ACCESS_TOKEN;
-  const accessSecret = process.env.TECH_ACCOUNT_ACCESS_SECRET;
-  if (!appKey || !appSecret || !accessToken || !accessSecret) {
-    return NextResponse.json({ error: "TECH_ACCOUNT credentials are not set" }, { status: 500 });
+  if (!appKey || !appSecret) {
+    return NextResponse.json({ error: "TECH_ACCOUNT_APP_KEY or TECH_ACCOUNT_APP_SECRET is not set" }, { status: 500 });
   }
 
   const TECH_ACCOUNT_ID = "tech_account";
 
   try {
-    // 2つ目のアカウントをaccountsテーブルに登録（初回のみ）
-    await db
-      .insert(accounts)
-      .values({ accountId: TECH_ACCOUNT_ID, accessToken, accessSecret })
-      .onConflictDoUpdate({
-        target: accounts.accountId,
-        set: { accessToken, accessSecret },
-      });
+    // DBからtech_accountの認証情報を取得
+    const techAccounts = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.accountId, TECH_ACCOUNT_ID));
+
+    if (techAccounts.length === 0) {
+      return NextResponse.json({ error: "tech_account not found in DB. Please insert it manually." }, { status: 500 });
+    }
+    const { accessToken, accessSecret } = techAccounts[0];
 
     const client = new TwitterApi({
       appKey,
