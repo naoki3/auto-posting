@@ -19,16 +19,48 @@ function isAuthorized(req: NextRequest): boolean {
 }
 
 /**
+ * URLのコンテンツを取得する（失敗したらnullを返す）
+ */
+async function fetchUrlContent(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    const html = await res.text();
+    // <title>と<meta description>だけ抽出
+    const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "";
+    const desc = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1]?.trim() ?? "";
+    const content = [title, desc].filter(Boolean).join(" - ");
+    return content.length > 0 ? content.slice(0, 300) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 英語ツイートを日本語に翻訳して投稿用テキストを生成
  */
 async function translateTweet(text: string): Promise<string> {
+  // ツイート内のURLを抽出してコンテンツ取得を試みる
+  const urls = text.match(/https?:\/\/\S+/g) ?? [];
+  const urlContents: string[] = [];
+  for (const url of urls) {
+    const content = await fetchUrlContent(url);
+    if (content) urlContents.push(`[リンク先: ${content}]`);
+  }
+
+  const urlContext = urlContents.length > 0
+    ? `\n\n【リンク先の内容】\n${urlContents.join("\n")}`
+    : "";
+
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 256,
     messages: [
       {
         role: "user",
-        content: `以下の英語ツイートを日本語に翻訳し、技術情報としてわかりやすく整理してXに投稿する文章を作成してください。
+        content: `以下の英語ツイートを日本語に翻訳し、技術情報としてわかりやすく整理してXに投稿する文章を作成してください。${urlContext}
 
 【原文】
 ${text}
@@ -40,8 +72,8 @@ ${text}
 - 箇条書きや改行を活用して見やすく
 - 絵文字1〜2個
 - 関連するハッシュタグを1〜2個末尾につける
-- URLや短縮リンク（t.coなど）は無視してテキスト部分だけ翻訳・要約する
-- URLの内容が不明でも必ずテキストから判断して出力する
+- リンク先の内容が取得できた場合はそれも踏まえて要約する
+- URLや短縮リンクの内容が不明でもテキスト部分から判断して必ず出力する
 
 投稿文のみ出力してください。`,
       },
