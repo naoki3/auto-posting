@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // カンマ区切りで複数指定可能（例: "Naokyyy3,anotheruser"）
-const SOURCE_USERNAMES = (process.env.TECH_SOURCE_ACCOUNTS ?? "Naokyyy3")
+const SOURCE_USERNAMES = (process.env.TECH_SOURCE_ACCOUNTS ?? "sama,karpathy,ylecun")
   .split(",")
   .map((u) => u.trim())
   .filter(Boolean);
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
           console.log(`[tech-post] @${username} Translated: "${translated}"`);
 
           // 投稿（翻訳文 + 元ツイートURL）
-          const posted = await client.v2.tweet(`${translated}\n${sourceUrl}`);
+          const posted = await client.v2.tweet(translated);
 
           // DB保存
           await db.insert(posts).values({
