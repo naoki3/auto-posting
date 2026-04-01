@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
           console.log(`[tech-post] @${username} Translated: "${translated}"`);
 
           // 投稿（翻訳文 + 元ツイートURL）
-          const posted = await client.v2.tweet(`${translated}\n${sourceUrl}`);
+          const posted = await client.v2.tweet(translated);
 
           // DB保存
           await db.insert(posts).values({
