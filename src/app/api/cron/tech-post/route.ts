@@ -40,6 +40,8 @@ ${text}
 - 箇条書きや改行を活用して見やすく
 - 絵文字1〜2個
 - 関連するハッシュタグを1〜2個末尾につける
+- URLや短縮リンク（t.coなど）は無視してテキスト部分だけ翻訳・要約する
+- URLの内容が不明でも必ずテキストから判断して出力する
 
 投稿文のみ出力してください。`,
       },
@@ -133,7 +135,7 @@ export async function GET(req: NextRequest) {
           console.log(`[tech-post] @${username} Translated: "${translated}"`);
 
           // 投稿（翻訳文 + 元ツイートURL）
-          const posted = await client.v2.tweet(translated);
+          const posted = await client.v2.tweet(`${translated}\n${sourceUrl}`);
 
           // DB保存
           await db.insert(posts).values({
