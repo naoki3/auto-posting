@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { db, accounts } from "@/lib/db";
 // import { posts, prompts } from "@/lib/db";
 // import { generateReplyComment } from "@/lib/ai";
@@ -17,11 +18,22 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const allAccounts = await db.select().from(accounts);
+    const allAccounts = await db.select().from(accounts).where(eq(accounts.accountId, "ito131913"));
     if (allAccounts.length === 0) {
       return NextResponse.json({ message: "No accounts found" }, { status: 200 });
     }
     const account = allAccounts[0];
+
+    // 自分のユーザーIDを1回だけ取得
+    const { TwitterApi } = await import("twitter-api-v2");
+    const client = new TwitterApi({
+      appKey: process.env.X_API_KEY!,
+      appSecret: process.env.X_API_SECRET!,
+      accessToken: account.accessToken,
+      accessSecret: account.accessSecret,
+    });
+    const me = await client.v2.me();
+    const myUserId = me.data.id;
 
     // 話題のツイートを検索
     const tweets = await searchPopularTweets(
@@ -40,7 +52,7 @@ export async function GET(req: NextRequest) {
         // いいね（失敗しても続行）
         let likeOk = false;
         try {
-          await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+          await likeTweet(account.accessToken, account.accessSecret, tweet.tweetId, myUserId);
           likeOk = true;
         } catch (e) {
           console.warn(`[engage] Like failed for ${tweet.tweetId}:`, e);
@@ -49,7 +61,7 @@ export async function GET(req: NextRequest) {
         // リポスト（失敗しても続行）
         let repostOk = false;
         try {
-          await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId);
+          await repostTweet(account.accessToken, account.accessSecret, tweet.tweetId, myUserId);
           repostOk = true;
         } catch (e) {
           console.warn(`[engage] Repost failed for ${tweet.tweetId}:`, e);

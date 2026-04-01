@@ -76,11 +76,11 @@ export async function searchPopularTweets(
 export async function likeTweet(
   accessToken: string,
   accessSecret: string,
-  tweetId: string
+  tweetId: string,
+  userId: string
 ): Promise<void> {
   const client = getClient(accessToken, accessSecret);
-  const me = await client.v2.me();
-  await client.v2.like(me.data.id, tweetId);
+  await client.v2.like(userId, tweetId);
 }
 
 /**
@@ -89,10 +89,10 @@ export async function likeTweet(
 export async function repostTweet(
   accessToken: string,
   accessSecret: string,
-  tweetId: string
+  tweetId: string,
+  userId: string
 ): Promise<void> {
   const client = getClient(accessToken, accessSecret);
-  const me = await client.v2.me();
-  await client.v2.retweet(me.data.id, tweetId);
+  await client.v2.retweet(userId, tweetId);
 }
 
