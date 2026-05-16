@@ -28,22 +28,20 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
       {
         role: "user",
         content: `今日は${today}です。
-かわいい日本人女性の画像を生成するための設定を考えてください。
+かわいい日本人女性の写真のシーンを考えてください。
 毎回バラエティ豊かで面白いものにしてください。
 
 以下の項目をすべて日本語で決めてください：
-・場所: （例：渋谷のカフェ、沖縄のビーチ、雪山のロッジなど）
-・時間帯: （例：昼下がり、夕暮れ、深夜など）
-・天気: （例：晴れ、小雨、雪など）
-・服装: （例：ミニスカートにキャミソール、水着、浴衣の着崩しなど。露出は少し多めで）
+・場所: 実在する具体的な場所（例：原宿のタピオカ屋の前、京都の伏見稲荷の参道、新宿の居酒屋、渋谷スクランブル交差点の歩道橋など）
+・時間帯: （例：昼下がり、夕暮れ、夜など）
+・天気・光: （例：晴れで木漏れ日、曇り空、夜のネオン照明など）
+・服装: 季節や場所に合ったリアルな日常コーデ（例：デニムジャケットとワンピース、ゆったりしたニットにスカートなど）
 ・髪型: （例：ゆるいポニーテール、おろしたまま、お団子など）
-・表情: （例：笑顔、驚いた顔、真剣な顔など）
-・カメラ: （例：スマホの自撮り、友達に撮ってもらった、盗み撮り風など）
-・雰囲気: （例：賑やか、ほっこり、ドキドキなど）
-・テーマ: （例：夏の思い出、女子会、一人旅など）
+・表情・ポーズ: 自然な日常の一瞬（例：カメラを見て微笑む、横を向いて笑っている、飲み物を持っているなど）
+・カメラ: （例：スマホの自撮り、友達に撮ってもらった、街中で自然に撮ったなど）
 
 それをもとに：
-1. OpenAI画像生成用の英語プロンプト（1〜2文。上記の設定をすべて含める）
+1. OpenAI画像生成用の英語プロンプト（2〜3文。「shot on iPhone」「candid photo」「real place」などリアルな写真らしい表現を使い、具体的な場所・光・服装・ポーズをすべて含める）
 2. Xに投稿するツイート文（日本語・100文字以内・女性らしい口語体・絵文字1〜2個・関連ハッシュタグ1〜2個を末尾に）
 
 以下の形式で出力してください（他の文章は不要）:
@@ -80,7 +78,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Same character as the reference image: same face, same dark hair, same mask. Cute and charming Japanese girl. Photorealistic, natural lighting, feels candid and authentic.`;
+  const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair, same mask. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-2",
