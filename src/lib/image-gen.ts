@@ -83,7 +83,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const prompt = `${scene}. Same character as the reference image: same face, same dark hair, same mask. Cute and charming Japanese girl. Photorealistic, natural lighting, feels candid and authentic.`;
 
   const response = await openai.images.edit({
-    model: "gpt-image-1",
+    model: "gpt-image-2",
     image: imageFile,
     prompt,
     n: 1,
