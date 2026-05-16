@@ -81,7 +81,7 @@ export async function generateCharacterImage(): Promise<ImagePostContent> {
   const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair, same mask. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
 
   const response = await openai.images.edit({
-    model: "gpt-image-1",
+    model: "gpt-image-2",
     image: imageFile,
     prompt,
     n: 1,
