@@ -92,8 +92,7 @@ ${list}
 /**
  * HN記事からX投稿文を生成（最大3回リトライ）
  */
-async function generateHNPost(hit: HNHit, sourceUrl: string): Promise<string> {
-  const articleContent = hit.url ? await fetchArticleContent(hit.url) : null;
+async function generateHNPost(hit: HNHit, sourceUrl: string, articleContent: string | null): Promise<string> {
   const contentContext = articleContent
     ? `\n【記事の内容】\n${articleContent}`
     : "";
@@ -179,16 +178,7 @@ export async function GET(req: NextRequest) {
     const rawHits = await fetchHNTopAI();
     console.log(`[hn-post] Fetched ${rawHits.length} hits from Algolia HN`);
 
-    // 2. objectID重複除外
-    const seenIds = new Set<string>();
-    const dedupById = rawHits.filter((h) => {
-      if (seenIds.has(h.objectID)) return false;
-      seenIds.add(h.objectID);
-      return true;
-    });
-    console.log(`[hn-post] After objectID dedup: ${dedupById.length}`);
-
-    // 3. URL重複除外（DB投稿済み + 同バッチ内）
+    // 2. URL重複除外（DB投稿済み + 同バッチ内）
     const postedRows = await db
       .select({ sourceUrl: posts.sourceUrl })
       .from(posts)
@@ -201,7 +191,7 @@ export async function GET(req: NextRequest) {
     );
 
     const seenUrls = new Set<string>(postedUrls);
-    const dedupByUrl = dedupById.filter((h) => {
+    const dedupByUrl = rawHits.filter((h) => {
       const url = h.url ?? `https://news.ycombinator.com/item?id=${h.objectID}`;
       if (seenUrls.has(url)) return false;
       seenUrls.add(url);
@@ -217,12 +207,17 @@ export async function GET(req: NextRequest) {
     const candidates = filtered.sort((a, b) => b.points - a.points).slice(0, CANDIDATE_LIMIT);
     console.log(`[hn-post] Candidates: ${candidates.length}`);
 
-    // 6. 各候補を投稿
+    // 6. 記事コンテンツを並列取得してから順番に投稿
+    const articleContents = await Promise.all(
+      candidates.map((h) => (h.url ? fetchArticleContent(h.url) : Promise.resolve(null)))
+    );
+
     const results = [];
-    for (const hit of candidates) {
+    for (let i = 0; i < candidates.length; i++) {
+      const hit = candidates[i];
       const sourceUrl = hit.url ?? `https://news.ycombinator.com/item?id=${hit.objectID}`;
       try {
-        const postText = await generateHNPost(hit, sourceUrl);
+        const postText = await generateHNPost(hit, sourceUrl, articleContents[i]);
         console.log(`[hn-post] Generated: "${postText}"`);
 
         const posted = await client.v2.tweet(postText);
@@ -264,7 +259,6 @@ export async function GET(req: NextRequest) {
       success: true,
       pipeline: {
         fetched: rawHits.length,
-        afterObjectIdDedup: dedupById.length,
         afterUrlDedup: dedupByUrl.length,
         afterLLMFilter: filtered.length,
         candidates: candidates.length,
