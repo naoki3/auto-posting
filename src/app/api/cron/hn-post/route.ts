@@ -36,6 +36,26 @@ async function fetchHNTopAI(): Promise<HNHit[]> {
 }
 
 /**
+ * 記事URLからタイトルとdescriptionを取得する（失敗時はnull）
+ */
+async function fetchArticleContent(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    const html = await res.text();
+    const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? "";
+    const desc =
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1]?.trim() ?? "";
+    const content = [title, desc].filter(Boolean).join(" - ");
+    return content.length > 0 ? content.slice(0, 400) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * LLMでAI・Tech関連かバッチ判定し、該当する記事のみ返す
  */
 async function filterByAITech(articles: HNHit[]): Promise<HNHit[]> {
@@ -73,14 +93,25 @@ ${list}
  * HN記事からX投稿文を生成（最大3回リトライ）
  */
 async function generateHNPost(hit: HNHit, sourceUrl: string): Promise<string> {
-  const prompt = `以下のHacker Newsの記事をもとに、X（旧Twitter）投稿文を作成してください。
+  const articleContent = hit.url ? await fetchArticleContent(hit.url) : null;
+  const contentContext = articleContent
+    ? `\n【記事の内容】\n${articleContent}`
+    : "";
 
-【タイトル】${hit.title}
+  const prompt = `あなたはIT技術ニュースをわかりやすく伝えるX（旧Twitter）投稿の専門家です。
+
+以下のHacker News記事をもとに、X投稿文を1つ作成してください。${contentContext}
+
+【HNタイトル】${hit.title}
 【HNポイント】${hit.points} / コメント数: ${hit.num_comments}
+
+【投稿フォーマット】
+1行目〜2行目: 何が起きたか・何が新しいかを噛み砕いて簡潔に（日本語）
+最終行: 一言コメント（驚き・注目ポイント・感想）
 
 【制約】
 - URL（23文字固定）を末尾に付けるため、本文は90文字以内
-- IT技術者向けに要点を簡潔に日本語で
+- 専門用語はそのまま使ってOK（補足不要）
 - 絵文字1〜2個
 - 関連するハッシュタグ1〜2個を末尾に
 
