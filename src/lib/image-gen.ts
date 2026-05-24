@@ -94,7 +94,8 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
   const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. Cinematic editorial style, moody and sophisticated atmosphere, no AI art style, no illustration, photojournalism quality.`;
 
   console.log(`[image-gen] Calling OpenAI images.edit, prompt length: ${prompt.length}`);
-  let response: Awaited<ReturnType<typeof openai.images.edit>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let response: any;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     response = await (openai.images.edit as any)({
