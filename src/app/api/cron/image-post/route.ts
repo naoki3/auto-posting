@@ -12,14 +12,14 @@ function isAuthorized(req: NextRequest): boolean {
   return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
 }
 
-async function handleImagePost(photoSource?: string): Promise<NextResponse> {
+async function handleImagePost(location?: string): Promise<NextResponse> {
   const allAccounts = await db.select().from(accounts).where(eq(accounts.accountId, "ito131913"));
   if (allAccounts.length === 0) {
     return NextResponse.json({ message: "No accounts found" }, { status: 200 });
   }
   const account = allAccounts[0];
 
-  const { imageBase64, tweetText } = await generateCharacterImage(photoSource);
+  const { imageBase64, tweetText } = await generateCharacterImage(location);
 
   const client = new TwitterApi({
     appKey: process.env.X_API_KEY!,
@@ -45,7 +45,7 @@ async function handleImagePost(photoSource?: string): Promise<NextResponse> {
   });
 }
 
-/** cronやZapierからGETで呼ぶ場合（デフォルト画像使用） */
+/** cronやZapierからGETで呼ぶ場合（ランダムシーン） */
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * 写真の場所をリクエストで指定する場合はPOSTで呼ぶ
- * Body: { "photoUrl": "https://..." } または { "photoPath": "/path/to/photo.png" }
+ * シーンの場所を指定して画像生成する場合はPOSTで呼ぶ
+ * Body: { "location": "車" } のように日本語で場所を指定
  */
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
@@ -71,9 +71,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const photoSource: string | undefined = body.photoUrl ?? body.photoPath;
+    const location: string | undefined = body.location;
 
-    return await handleImagePost(photoSource);
+    return await handleImagePost(location);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[image-post] Fatal error:", err);
