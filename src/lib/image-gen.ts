@@ -41,7 +41,7 @@ ${locationInstruction}
 ・表情・ポーズ: 少し妖艶で魅力的な一瞬（例：カメラをじっと見つめる、上目遣い、薄く微笑む、など）
 
 それをもとに：
-1. OpenAI画像生成用の英語プロンプト（2〜3文。「shot on iPhone」「candid photo」などリアルな写真らしい表現を使い、場所・光・服装・ポーズをすべて含める。alluring/mysteriousな雰囲気を自然に表現する）
+1. OpenAI画像生成用の英語プロンプト（2〜3文。雰囲気・照明・ファッション・シーンで妖艶さを表現すること。人物の表情や体への直接的な言及は避け、「cinematic portrait」「moody lighting」「editorial fashion」「intimate atmosphere」「mysterious ambiance」「sophisticated setting」などの表現を使う。「shot on iPhone」「candid photo」などリアルな写真らしい表現も含める）
 2. Xに投稿するツイート文（日本語・100文字以内・女性らしい口語体・絵文字1〜2個・関連ハッシュタグ1〜2個を末尾に）
 
 以下の形式で出力してください（他の文章は不要）:
@@ -75,7 +75,7 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
   const imageBuffer = fs.readFileSync(characterImagePath);
   const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
 
-  const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. Natural and charming expression, graceful pose. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
+  const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. Cinematic editorial style, moody and sophisticated atmosphere, no AI art style, no illustration, photojournalism quality.`;
 
   console.log(`[image-gen] Calling OpenAI images.edit, prompt length: ${prompt.length}`);
   let response: Awaited<ReturnType<typeof openai.images.edit>>;
