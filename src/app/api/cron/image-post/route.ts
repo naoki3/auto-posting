@@ -19,7 +19,7 @@ async function handleImagePost(location?: string): Promise<NextResponse> {
   }
   const account = allAccounts[0];
 
-  const { imageBase64, tweetText } = await generateCharacterImage(location);
+  const { imageBase64, tweetText, mimeType } = await generateCharacterImage(location);
 
   const client = new TwitterApi({
     appKey: process.env.X_API_KEY!,
@@ -28,15 +28,17 @@ async function handleImagePost(location?: string): Promise<NextResponse> {
     accessSecret: account.accessSecret,
   });
 
-  console.log(`[image-post] Starting media upload, buffer size: ${imageBase64.length}`);
   const imageBuffer = Buffer.from(imageBase64, "base64");
+  console.log(`[image-post] Starting media upload, mimeType: ${mimeType}, buffer bytes: ${imageBuffer.byteLength}`);
   let mediaId: string;
   try {
-    mediaId = await client.v1.uploadMedia(imageBuffer, { mimeType: "image/png" });
+    mediaId = await client.v1.uploadMedia(imageBuffer, { mimeType });
     console.log(`[image-post] Media uploaded: ${mediaId}`);
   } catch (uploadErr) {
-    const msg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
-    console.error(`[image-post] Media upload failed: ${msg}`);
+    const errDetail = uploadErr instanceof Error
+      ? `${uploadErr.message} | ${JSON.stringify((uploadErr as Record<string, unknown>).data ?? {})}`
+      : String(uploadErr);
+    console.error(`[image-post] Media upload failed: ${errDetail}`);
     throw uploadErr;
   }
 

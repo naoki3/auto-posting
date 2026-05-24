@@ -9,6 +9,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export interface ImagePostContent {
   imageBase64: string;
   tweetText: string;
+  mimeType: "image/jpeg" | "image/png";
 }
 
 async function generateTheme(location?: string): Promise<{ scene: string; tweetText: string }> {
@@ -95,12 +96,15 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
   console.log(`[image-gen] Calling OpenAI images.edit, prompt length: ${prompt.length}`);
   let response: Awaited<ReturnType<typeof openai.images.edit>>;
   try {
-    response = await openai.images.edit({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    response = await (openai.images.edit as any)({
       model: "gpt-image-2",
       image: imageFile,
       prompt,
       n: 1,
       size: "1024x1024",
+      output_format: "jpeg",
+      output_compression: 85,
     });
   } catch (openaiErr) {
     const msg = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
@@ -113,6 +117,6 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
     throw new Error("Image generation failed: no image data returned");
   }
 
-  console.log(`[image-gen] Image generated successfully`);
-  return { imageBase64, tweetText };
+  console.log(`[image-gen] Image generated successfully, base64 length: ${imageBase64.length}`);
+  return { imageBase64, tweetText, mimeType: "image/jpeg" as ImagePostContent["mimeType"] };
 }
