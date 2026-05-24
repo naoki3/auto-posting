@@ -11,9 +11,6 @@ export interface ImagePostContent {
   tweetText: string;
 }
 
-/**
- * Claudeで今日のシーンテーマとツイート文を生成する
- */
 async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
   const today = new Date().toLocaleDateString("ja-JP", {
     month: "long",
@@ -28,20 +25,20 @@ async function generateTheme(): Promise<{ scene: string; tweetText: string }> {
       {
         role: "user",
         content: `今日は${today}です。
-かわいい日本人女性の写真のシーンを考えてください。
+魅力的で少し妖艶な雰囲気の日本人女性の写真のシーンを考えてください。
 毎回バラエティ豊かで面白いものにしてください。
 
 以下の項目をすべて日本語で決めてください：
-・場所: 実在する具体的な場所（例：原宿のタピオカ屋の前、京都の伏見稲荷の参道、新宿の居酒屋、渋谷スクランブル交差点の歩道橋など）
+・場所: 実在する具体的な場所（例：原宿のカフェ、京都の古い路地、新宿のバー、銀座の夜道など）
 ・時間帯: （例：昼下がり、夕暮れ、夜など）
-・天気・光: （例：晴れで木漏れ日、曇り空、夜のネオン照明など）
-・服装: 季節や場所に合ったリアルな日常コーデ（例：デニムジャケットとワンピース、ゆったりしたニットにスカートなど）
-・髪型: （例：ゆるいポニーテール、おろしたまま、お団子など）
-・表情・ポーズ: 自然な日常の一瞬（例：カメラを見て微笑む、横を向いて笑っている、飲み物を持っているなど）
-・カメラ: （例：スマホの自撮り、友達に撮ってもらった、街中で自然に撮ったなど）
+・天気・光: （例：晴れで柔らかい光、夕焼け、夜のネオン照明など）
+・服装: 女性らしく魅力的なコーデ（例：オフショルダー、シルクのブラウス、チャイナドレス風など）
+・髪型: （例：ゆるくほどけた髪、横に流した髪、アップスタイルなど）
+・表情・ポーズ: 少し妖艶で魅力的な一瞬（例：カメラをじっと見つめる、上目遣い、薄く微笑む、唇に指を当てるなど）
+・カメラ: （例：スマホの自撮り、友達に撮ってもらった、自然な街撮りなど）
 
 それをもとに：
-1. OpenAI画像生成用の英語プロンプト（2〜3文。「shot on iPhone」「candid photo」「real place」などリアルな写真らしい表現を使い、具体的な場所・光・服装・ポーズをすべて含める）
+1. OpenAI画像生成用の英語プロンプト（2〜3文。「shot on iPhone」「candid photo」「real place」などリアルな写真らしい表現を使い、具体的な場所・光・服装・ポーズをすべて含める。alluring/mysteriousな雰囲気を自然に表現する）
 2. Xに投稿するツイート文（日本語・100文字以内・女性らしい口語体・絵文字1〜2個・関連ハッシュタグ1〜2個を末尾に）
 
 以下の形式で出力してください（他の文章は不要）:
@@ -57,28 +54,42 @@ TWEET: [日本語ツイート文]`,
   const tweetMatch = text.match(/TWEET:\s*(.+)/);
 
   let tweetText = tweetMatch?.[1]?.trim() ?? "今日もいい一日になりますように✨ #日常";
-  // @で始まるとリプライ扱いになるため除去
   tweetText = tweetText.replace(/^@+/, "");
 
   return {
-    scene: sceneMatch?.[1]?.trim() ?? "A young Japanese woman wearing a mask in a seasonal Japanese setting",
+    scene: sceneMatch?.[1]?.trim() ?? "A young Japanese woman in a stylish outfit at a Japanese street at night",
     tweetText,
   };
 }
 
-/**
- * キャラ画像を参照して新しいシーンの画像を生成する
- */
-export async function generateCharacterImage(): Promise<ImagePostContent> {
+async function loadImageFile(photoSource: string): Promise<File> {
+  if (photoSource.startsWith("http://") || photoSource.startsWith("https://")) {
+    const res = await fetch(photoSource);
+    if (!res.ok) throw new Error(`Failed to fetch image from URL: ${photoSource}`);
+    const arrayBuffer = await res.arrayBuffer();
+    const ext = photoSource.split(".").pop()?.toLowerCase() ?? "png";
+    const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+    return new File([arrayBuffer], `photo.${ext}`, { type: mimeType });
+  }
+
+  const filePath = path.isAbsolute(photoSource)
+    ? photoSource
+    : path.join(process.cwd(), photoSource);
+  const buffer = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+  return new File([buffer], path.basename(filePath), { type: mimeType });
+}
+
+export async function generateCharacterImage(photoSource?: string): Promise<ImagePostContent> {
   const { scene, tweetText } = await generateTheme();
   console.log(`[image-gen] Scene: ${scene}`);
   console.log(`[image-gen] Tweet: ${tweetText}`);
 
-  const characterImagePath = path.join(process.cwd(), "public", "character.png");
-  const imageBuffer = fs.readFileSync(characterImagePath);
-  const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
+  const source = photoSource ?? path.join(process.cwd(), "public", "character.png");
+  const imageFile = await loadImageFile(source);
 
-  const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair, same mask. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
+  const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. She has an alluring and slightly mysterious expression, captivating gaze, soft lips. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
 
   const response = await openai.images.edit({
     model: "gpt-image-2",
