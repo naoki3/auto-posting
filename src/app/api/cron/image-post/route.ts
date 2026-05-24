@@ -50,8 +50,10 @@ async function handleImagePost(location?: string): Promise<NextResponse> {
     });
     console.log(`[image-post] Posted tweet: ${tweet.data.id}`);
   } catch (tweetErr) {
-    const msg = tweetErr instanceof Error ? tweetErr.message : String(tweetErr);
-    console.error(`[image-post] Tweet post failed: ${msg}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = tweetErr as any;
+    const detail = JSON.stringify({ message: e?.message, code: e?.code, data: e?.data, errors: e?.errors });
+    console.error(`[image-post] Tweet post failed: ${detail}`);
     throw tweetErr;
   }
 
@@ -72,8 +74,11 @@ export async function GET(req: NextRequest) {
     return await handleImagePost();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[image-post] Fatal error:", err);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = err as any;
+    const detail = { message, code: e?.code, data: e?.data, errors: e?.errors };
+    console.error("[image-post] Fatal error:", JSON.stringify(detail));
+    return NextResponse.json({ success: false, error: message, detail }, { status: 500 });
   }
 }
 
@@ -93,7 +98,10 @@ export async function POST(req: NextRequest) {
     return await handleImagePost(location);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error("[image-post] Fatal error:", err);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = err as any;
+    const detail = { message, code: e?.code, data: e?.data, errors: e?.errors };
+    console.error("[image-post] Fatal error:", JSON.stringify(detail));
+    return NextResponse.json({ success: false, error: message, detail }, { status: 500 });
   }
 }
