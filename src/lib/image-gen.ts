@@ -72,8 +72,20 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
   console.log(`[image-gen] Tweet: ${tweetText}`);
 
   const characterImagePath = path.join(process.cwd(), "public", "character.png");
-  const imageBuffer = fs.readFileSync(characterImagePath);
-  const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
+  let imageFile: File;
+  if (fs.existsSync(characterImagePath)) {
+    console.log(`[image-gen] Loading character from filesystem`);
+    const imageBuffer = fs.readFileSync(characterImagePath);
+    imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
+  } else {
+    const appUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000";
+    console.log(`[image-gen] Filesystem miss, fetching from ${appUrl}`);
+    const charRes = await fetch(`${appUrl}/character.png`);
+    if (!charRes.ok) throw new Error(`Character fetch failed: ${charRes.status}`);
+    imageFile = new File([await charRes.arrayBuffer()], "character.png", { type: "image/png" });
+  }
 
   const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. Cinematic editorial style, moody and sophisticated atmosphere, no AI art style, no illustration, photojournalism quality.`;
 
