@@ -28,15 +28,30 @@ async function handleImagePost(location?: string): Promise<NextResponse> {
     accessSecret: account.accessSecret,
   });
 
+  console.log(`[image-post] Starting media upload, buffer size: ${imageBase64.length}`);
   const imageBuffer = Buffer.from(imageBase64, "base64");
-  const mediaId = await client.v1.uploadMedia(imageBuffer, { mimeType: "image/png" });
-  console.log(`[image-post] Media uploaded: ${mediaId}`);
+  let mediaId: string;
+  try {
+    mediaId = await client.v1.uploadMedia(imageBuffer, { mimeType: "image/png" });
+    console.log(`[image-post] Media uploaded: ${mediaId}`);
+  } catch (uploadErr) {
+    const msg = uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+    console.error(`[image-post] Media upload failed: ${msg}`);
+    throw uploadErr;
+  }
 
-  const tweet = await client.v2.tweet({
-    text: tweetText,
-    media: { media_ids: [mediaId] },
-  });
-  console.log(`[image-post] Posted tweet: ${tweet.data.id}`);
+  let tweet: Awaited<ReturnType<typeof client.v2.tweet>>;
+  try {
+    tweet = await client.v2.tweet({
+      text: tweetText,
+      media: { media_ids: [mediaId] },
+    });
+    console.log(`[image-post] Posted tweet: ${tweet.data.id}`);
+  } catch (tweetErr) {
+    const msg = tweetErr instanceof Error ? tweetErr.message : String(tweetErr);
+    console.error(`[image-post] Tweet post failed: ${msg}`);
+    throw tweetErr;
+  }
 
   return NextResponse.json({
     success: true,
