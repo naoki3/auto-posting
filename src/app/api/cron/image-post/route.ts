@@ -36,7 +36,7 @@ async function handleImagePost(location?: string): Promise<NextResponse> {
     console.log(`[image-post] Media uploaded: ${mediaId}`);
   } catch (uploadErr) {
     const errDetail = uploadErr instanceof Error
-      ? `${uploadErr.message} | ${JSON.stringify((uploadErr as Record<string, unknown>).data ?? {})}`
+      ? `${uploadErr.message} | ${JSON.stringify((uploadErr as unknown as Record<string, unknown>).data ?? {})}`
       : String(uploadErr);
     console.error(`[image-post] Media upload failed: ${errDetail}`);
     throw uploadErr;
