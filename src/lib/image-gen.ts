@@ -1,6 +1,4 @@
 import OpenAI from "openai";
-import * as fs from "fs";
-import * as path from "path";
 import Anthropic from "@anthropic-ai/sdk";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -71,9 +69,14 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
   console.log(`[image-gen] Scene: ${scene}`);
   console.log(`[image-gen] Tweet: ${tweetText}`);
 
-  const characterImagePath = path.join(process.cwd(), "public", "character.png");
-  const imageBuffer = fs.readFileSync(characterImagePath);
-  const imageFile = new File([imageBuffer], "character.png", { type: "image/png" });
+  // Vercelのサーバーレス関数からはpublic/へのfsアクセスが不可なのでHTTP取得する
+  const appUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+  console.log(`[image-gen] Fetching character from: ${appUrl}/character.png`);
+  const charRes = await fetch(`${appUrl}/character.png`);
+  if (!charRes.ok) throw new Error(`Character image fetch failed: ${charRes.status}`);
+  const imageFile = new File([await charRes.arrayBuffer()], "character.png", { type: "image/png" });
 
   const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. She has an alluring and slightly mysterious expression, captivating gaze, soft lips. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
 
