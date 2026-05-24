@@ -41,7 +41,10 @@ ${locationInstruction}
 ・表情・ポーズ: 少し妖艶で魅力的な一瞬（例：カメラをじっと見つめる、上目遣い、薄く微笑む、など）
 
 それをもとに：
-1. OpenAI画像生成用の英語プロンプト（2〜3文。雰囲気・照明・ファッション・シーンで妖艶さを表現すること。人物の表情や体への直接的な言及は避け、「cinematic portrait」「moody lighting」「editorial fashion」「intimate atmosphere」「mysterious ambiance」「sophisticated setting」などの表現を使う。「shot on iPhone」「candid photo」などリアルな写真らしい表現も含める）
+1. OpenAI画像生成用の英語プロンプト（2〜3文。以下のルールを厳守すること：
+   - 使ってよい表現: cinematic portrait, moody lighting, editorial fashion photography, elegant atmosphere, sophisticated style, mysterious ambiance, soft natural light, stylish outfit, graceful pose, candid shot on iPhone
+   - 絶対に使ってはいけない表現: seductive, alluring, sensual, sexy, revealing, provocative, intimate, tempting, sultry, erotic, suggestive, flirtatious, body-focused descriptions, lip/skin descriptions
+   - 妖艶さはロケーション・照明・ファッションで間接的に表現すること）
 2. Xに投稿するツイート文（日本語・100文字以内・女性らしい口語体・絵文字1〜2個・関連ハッシュタグ1〜2個を末尾に）
 
 以下の形式で出力してください（他の文章は不要）:
