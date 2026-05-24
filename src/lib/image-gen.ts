@@ -77,13 +77,21 @@ export async function generateCharacterImage(location?: string): Promise<ImagePo
 
   const prompt = `${scene}. Keep the exact same person as in the reference image: same face, same dark hair. She has an alluring and slightly mysterious expression, captivating gaze, soft lips. Shot on iPhone, candid and natural, realistic background with real depth and texture, no AI art style, no illustration, no smooth skin filter, photojournalism quality.`;
 
-  const response = await openai.images.edit({
-    model: "gpt-image-2",
-    image: imageFile,
-    prompt,
-    n: 1,
-    size: "1024x1024",
-  });
+  console.log(`[image-gen] Calling OpenAI images.edit, prompt length: ${prompt.length}`);
+  let response: Awaited<ReturnType<typeof openai.images.edit>>;
+  try {
+    response = await openai.images.edit({
+      model: "gpt-image-2",
+      image: imageFile,
+      prompt,
+      n: 1,
+      size: "1024x1024",
+    });
+  } catch (openaiErr) {
+    const msg = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
+    console.error(`[image-gen] OpenAI error: ${msg}`);
+    throw openaiErr;
+  }
 
   const imageBase64 = response.data?.[0]?.b64_json;
   if (!imageBase64) {
