@@ -127,6 +127,7 @@ export async function GET(req: NextRequest) {
     const postedUrls = new Set(postedRows.map((r) => r.sourceUrl));
 
     const results = [];
+    const skipped = [];
 
     for (const username of SOURCE_USERNAMES) {
       // ユーザーIDを取得
@@ -157,6 +158,7 @@ export async function GET(req: NextRequest) {
         const textWithoutUrls = tweet.text.replace(/https?:\/\/\S+/g, "").trim();
         if (textWithoutUrls.length < 10) {
           console.log(`[tech-post] Skipping URL-only tweet: ${tweet.id}`);
+          skipped.push({ username, tweetId: tweet.id, reason: "url-only", text: tweet.text });
           continue;
         }
 
@@ -194,8 +196,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       results,
+      skipped,
       postedCount: results.filter((r) => r.status === "posted").length,
       failedCount: results.filter((r) => r.status === "failed").length,
+      skippedCount: skipped.length,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
