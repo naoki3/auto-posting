@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/cron-auth";
 import { eq } from "drizzle-orm";
 import { db, accounts } from "@/lib/db";
 import { generateCharacterImage } from "@/lib/image-gen";
 import { TwitterApi } from "twitter-api-v2";
 
 export const maxDuration = 300;
-
-function isAuthorized(req: NextRequest): boolean {
-  if (process.env.NODE_ENV === "development") return true;
-  const authHeader = req.headers.get("authorization")?.trim();
-  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
-}
 
 async function handleImagePost(location?: string): Promise<NextResponse> {
   const allAccounts = await db.select().from(accounts).where(eq(accounts.accountId, "ito131913"));

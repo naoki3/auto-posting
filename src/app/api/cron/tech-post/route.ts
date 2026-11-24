@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/cron-auth";
 import { desc, eq } from "drizzle-orm";
 import { db, accounts, posts } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
@@ -11,12 +12,6 @@ const SOURCE_USERNAMES = (process.env.TECH_SOURCE_ACCOUNTS ?? "sama,karpathy,yle
   .split(",")
   .map((u) => u.trim())
   .filter(Boolean);
-
-function isAuthorized(req: NextRequest): boolean {
-  if (process.env.NODE_ENV === "development") return true;
-  const authHeader = req.headers.get("authorization")?.trim();
-  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
-}
 
 /**
  * URLのコンテンツを取得する（失敗したらnullを返す）

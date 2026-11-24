@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/cron-auth";
 import { desc, eq, isNotNull } from "drizzle-orm";
 import { db, accounts, posts, prompts } from "@/lib/db";
 import { generateNewsPost } from "@/lib/ai";
 import { fetchTopNews } from "@/lib/news";
 import { postTweet } from "@/lib/twitter";
-
-function isAuthorized(req: NextRequest): boolean {
-  if (process.env.NODE_ENV === "development") return true;
-  const authHeader = req.headers.get("authorization")?.trim();
-  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
-}
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
