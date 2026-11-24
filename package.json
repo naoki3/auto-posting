@@ -17,7 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@neondatabase/serverless": "^0.10.4",
-    "drizzle-orm": "^0.40.0",
+    "drizzle-orm": "^0.45.4",
     "next": "^15.2.4",
     "openai": "^6.33.0",
     "react": "^19.0.0",

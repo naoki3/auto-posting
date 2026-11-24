@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/cron-auth";
 import { desc, eq } from "drizzle-orm";
 import { db, accounts, posts } from "@/lib/db";
 import { TwitterApi } from "twitter-api-v2";
@@ -19,12 +20,6 @@ interface HNHit {
   author: string;
   created_at: string;
   num_comments: number;
-}
-
-function isAuthorized(req: NextRequest): boolean {
-  if (process.env.NODE_ENV === "development") return true;
-  const authHeader = req.headers.get("authorization")?.trim();
-  return authHeader === `Bearer ${process.env.CRON_SECRET?.trim()}`;
 }
 
 async function fetchHNTopAI(): Promise<HNHit[]> {
